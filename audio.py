@@ -6,17 +6,29 @@ import matplotlib.pyplot as plt
 from scipy.io import wavfile
 
 
-def binary(A, T):
-    iters  = 100/T
+def binary(A, T, folder):
+    
     signal = []
-    for elem in range(0, iters):
+    times = np.arange(0,100, T)
+    for elem in range(0, len(times)):
         shot = np.random.rand()
         if shot>0.5:
             signal.append(1)
         else:
             signal.append(0)
-    signal = A*signal
     
+    signal = A*np.array(signal)
+    plt.figure(figsize=(30, 4))
+    plt.fill_between(times, signal) 
+    plt.xlim(times[0], times[-1])
+    plt.xlabel('time (s)')
+    plt.ylabel('amplitude')
+    # You can set the format by changing the extension
+    # like .pdf, .svg, .eps
+    pat = os.getcwd() + "\\Sound" + "\\" + folder + "\\Recording.png"
+    plt.savefig(pat, dpi=100)
+    plt.show()
+    signal = np.array([times,signal])
     return signal
 def record(time,name, pather):
     # the file name output you want to record into
@@ -106,25 +118,32 @@ def waveform(pather, folder):
     plt.ylabel('amplitude')
     # You can set the format by changing the extension
     # like .pdf, .svg, .eps
-    pat = os.getcwd() + "\\Sound" + "\\" + folder + "\\audio.png"
+    pat = os.getcwd() + "\\Sound" + "\\" + folder + "\\recording.png"
     plt.savefig(pat, dpi=100)
     plt.show()
     sound = np.array([times,data])
     return sound
-def main():
-    folder = "Tester"
-    name = "test.wav"
-    
+def Setter(folder, mode, **kwargs): #Provide Folder Name(inside sound Directory) #Provide a name for the wav file #Mode 1- binary 2 - record
+    name = "Recording"
+    for key in kwargs:
+        if (key=='A'):
+            A = float(kwargs[key])
+        if (key=='T'):
+            T = float(kwargs[key])
+     
+
     path = os.getcwd() + "\\Sound\\" + str(folder)
     try:
         os.mkdir(path)
     except:
         pass
-    
     pather = path + "\\" + name
-    #record(5, name, pather)
+    if mode == 1:
+        signal = binary(A,T,folder)
+    else:
+        record(5, name, pather)   
+        playback(pather)
+        signal = waveform(pather,folder)
+    return signal
 
-    #playback(pather)
-    waveform(pather,folder)
-
-main()
+Setter('Tester', 2, A=5, T=0.1)

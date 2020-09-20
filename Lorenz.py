@@ -3,8 +3,6 @@ import odestep as step
 import utilities as util
 import argparse	                 # allows us to deal with arguments to main()
 from argparse import RawTextHelpFormatter
-import numpy as np               # numerical routines (arrays, math functions etc)
-import matplotlib as mpl
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 import matplotlib.pyplot as plt
