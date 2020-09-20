@@ -8,7 +8,13 @@ import matplotlib as mpl
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 import matplotlib.pyplot as plt
-
+import mpl_toolkits.mplot3d.axes3d as p3
+import matplotlib.animation as animation
+from matplotlib import pyplot as plt
+import numpy as np
+import mpl_toolkits.mplot3d.axes3d as p3
+from matplotlib import animation
+import os
 
 
 
@@ -182,17 +188,36 @@ def bvp_root(fRHS,fORD,fLOA,fSCO,v0,nstep,**kwargs): # Possible Root Finder atm 
     return x,y
 """
 #=======================================
-def check(x,y,it):
-    mpl.rcParams['legend.fontsize'] = 10
-
-    fig = plt.figure()
-    ax = fig.gca(projection='3d')
-    ax.plot(y[0], y[1], y[2], label='parametric curve')
-    ax.legend()
-    plt.show()
-
-def main():
+def check(x,y,it,r,iter,Name):
     col = ['black','green','cyan','blue','red','black','black','black','black']
+    fig = plt.figure()
+    ax = p3.Axes3D(fig)
+    
+    data = y
+    N = data.shape[1]-1
+    line, = ax.plot(data[0, 0:1], data[1, 0:1], data[2, 0:1], '-o', color=col[iter-1])
+
+    # Setting the axes properties
+    ax.set_xlim3d([min(data[0])-1, max(data[0])+1])
+    ax.set_xlabel('X')
+
+    ax.set_ylim3d([min(data[1])-1, max(data[1])+1])
+    ax.set_ylabel('Y')
+
+    ax.set_zlim3d([min(data[2])-1, max(data[2])+1])
+    ax.set_zlabel('Z')
+    ax.legend()
+    ani = animation.FuncAnimation(fig, update, N, fargs=(data, line), interval=10000/N, blit=False)
+    pl = os.getcwd() + "\\Data" + "\\" + str(Name) + "\\r" + str(r)+'.gif'
+    ani.save(pl, writer='imagemagick')
+
+
+def update(num, data,line):
+    line.set_data(data[:2, :num])
+    line.set_3d_properties(data[2, :num])
+    
+    
+def main():
 
 
     parser = argparse.ArgumentParser(formatter_class=RawTextHelpFormatter)
@@ -203,16 +228,37 @@ def main():
                              "   rk4  : Runge-Kutta 4th order\n")
     parser.add_argument("steps",type=int,default=100,
                         help="number of steps")
+    parser.add_argument("limit",type=int,default=1,
+                        help="paramaters tested")
+    parser.add_argument("namefolder",type=str,default=1,
+                        help="paramaters tested")
+
 
     args   = parser.parse_args()
 
     stepper= args.stepper
     nstep = args.steps
-
+    limit = args.limit
+    Name = args.namefolder
+    pather = os.getcwd() + '\\Data' + "\\" + Name
+    try:
+        os.mkdir(pather)
+    except:
+        pass
     fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep)
-    x,y,it                             = fINT(fRHS,fORD,fBVP,x0,y0,x1,nstep,s=10,b=8/3,r=10)
-    check(x,y,it)
+    rpar = np.array([10,22,24.5,100,126.52,150,166.3,212])
 
+    tests = 1
+    for rparam in rpar:
+        print('Testing paramater: ' + str(rparam))
+        print(str((tests)/limit)+"% Done ")
+        x,y,it = fINT(fRHS,fORD,fBVP,x0,y0,x1,nstep,s=10,b=8/3,r=rparam)
+        check(x,y,it,rparam,tests, Name)
+        if tests == limit:
+            break
+        tests +=1
+    plt.show()
+    
 
 
 
