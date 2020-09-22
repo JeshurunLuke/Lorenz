@@ -8,9 +8,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import mpl_toolkits.mplot3d.axes3d as p3
 import matplotlib.animation as animation
-from matplotlib import pyplot as plt
-import numpy as np
-import mpl_toolkits.mplot3d.axes3d as p3
 from matplotlib import animation
 import os
 
@@ -206,7 +203,7 @@ def check(x,y,it,r,iter,Name):
     ax.set_zlabel('Z')
     ax.legend()
     ani = animation.FuncAnimation(fig, update, N, fargs=(data, line), interval=10000/N, blit=False)
-    pl = os.getcwd() + "\\Data" + "\\" + str(Name) + "\\r" + str(r)+'.gif'
+    pl = os.getcwd() + "/Data" + "/" + str(Name) + "/r" + str(r)+'.gif'
     ani.save(pl, writer='imagemagick')
 
 
@@ -238,7 +235,7 @@ def main():
     nstep = args.steps
     limit = args.limit
     Name = args.namefolder
-    pather = os.getcwd() + '\\Data' + "\\" + Name
+    pather = os.getcwd() + '/Data' + "/" + Name
     try:
         os.mkdir(pather)
     except:
