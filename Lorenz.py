@@ -52,39 +52,7 @@ def dydx_lorenz6(x,y,z,**kwargs):
     return dydx
     # ????? to her
 
-#========================================
-# fLOA for the string problem
-# This is the (boundary) loading function.
-# Should return the integration boundaries x0,x1, and
-# the initial values y(x=0). Therefore, y must be
-# an array with three elements. 
-# The function takes an argument v, which in our case
-# is just the eigenvalue lambda.
-# Note that some of the initial values in y can
-# (and should!) depend on lambda.
-"""
-def load_IC(): #Invalid Function atm
-    # ????? from here
-    y[0] = 10
-    y[1] = 10
-    y[2] = 10
-    # ????? to here
-    return y
-"""
-#========================================
-# fSCO for the string problem
-# This is the scoring function. Should return
-# the function that needs to be zeroed by the
-# root finder. In our case, that's just y(1). 
-# The function takes the arguments x and y, where
-# y is an array with three elements.
-"""
-def score_IC(x,y): #Invalid Function atm
-    # ????? from here
-    score = y[0,y.shape[1]-1] - 0
-    # ????? to here
-    return score # displacement should be zero.
-"""
+
 
 
 def ode_init(stepper,nstep):
@@ -133,67 +101,16 @@ def ode_ivp(fRHS,fORD,fBVP,x0,y0,x1,nstep,**kwargs):
 # Sets the initial values (guesses) via fLOA, calculates 
 # the corresponding solution via ode_ivp, and returns 
 # a "score" via fSCO, i.e. a value for the rootfinder to zero out.
-"""
-def bvp_shoot(fRHS,fORD,fLOA,fSCO,v,nstep,**kwargs): #Assistor to root finder atm invalid root finder
-    # ????? from here
-    x0,x1,y = fLOA(v)
-    x,y = ode_ivp(fRHS,fORD,x0,x1,y,nstep,**kwargs)
-
-    score = fSCO(x,y)
-  
-    # ????? to here
-    return score # this should be zero, and thus can be directly used.
 
 #=======================================
-# The rootfinder.
-# The function pointers are problem-specific (see main()). 
-# v0 is the initial guess for the eigenvalue (in our case).
-# Should return x,y, so that the solution can be plotted.
-def bvp_root(fRHS,fORD,fLOA,fSCO,v0,nstep,**kwargs): # Possible Root Finder atm invalid method
-
-    eig = [v0]
-    n = np.arange(1,100000,1) #Sets maximum iteration amount
-    for elem in n: #Iterates through v1 by multiplying v0*1.05 till there is a sign change
-        v1 = v0*(1.05)**elem
-        score2 = bvp_shoot(fRHS,fORD,fLOA,fSCO,v0,nstep,**kwargs)
-        score3 = bvp_shoot(fRHS,fORD,fLOA,fSCO,v1,nstep,**kwargs)
-        if score2*score3<0:
-            eig.append(v1)
-            break
-
-    cond = True
-    v1 = eig[1]
-
-    iter = 1
-    errcon  = 1.89e-4 #Desirable Tolarance
-    maxit   = 100000 #Max iteration amount (stops infinite loops)
-    while cond and (iter<maxit): #Normal Bisection routine -> finds eigenvalue
-        v = (v0+v1)/2
-        score1 = bvp_shoot(fRHS,fORD,fLOA,fSCO,v,nstep,**kwargs)
-        score2 = bvp_shoot(fRHS,fORD,fLOA,fSCO,v0,nstep,**kwargs)
-        score3 = bvp_shoot(fRHS,fORD,fLOA,fSCO,v1,nstep,**kwargs)
-        if score1*score2 > 0:
-            v0 = v
-        else:
-            v1 = v
-        if abs(score1) <= errcon:
-            cond = False
-        iter +=1
-    x0,x1,y = fLOA(v)
-    x,y = ode_ivp(fRHS,fORD,x0,x1,y,nstep,**kwargs)
-
-    # ????? to here
-    return x,y
-"""
-#=======================================
-def check(x,y,it,r,iter,Name):
+def check(x,y,it,r,Name):
     col = ['black','green','cyan','blue','red','black','black','black','black']
     fig = plt.figure()
     ax = p3.Axes3D(fig)
     
     data = y
     N = data.shape[1]-1
-    line, = ax.plot(data[0, 0:1], data[1, 0:1], data[2, 0:1], '-o', color=col[iter-1])
+    line, = ax.plot(y[0, :], y[1, :], y[2, :], '-o', color=col[1])
 
     # Setting the axes properties
     ax.set_xlim3d([min(data[0])-1, max(data[0])+1])
@@ -205,9 +122,6 @@ def check(x,y,it,r,iter,Name):
     ax.set_zlim3d([min(data[2])-1, max(data[2])+1])
     ax.set_zlabel('Z')
     ax.legend()
-    ani = animation.FuncAnimation(fig, update, N, fargs=(data, line), interval=10000/N, blit=False)
-    pl = os.getcwd() + "\\Data" + "\\" + str(Name) + "\\r" + str(r)+'.gif'
-    ani.save(pl, writer='imagemagick')
 
 
 def update(num, data,line):
@@ -230,6 +144,8 @@ def main():
                         help="paramaters tested")
     parser.add_argument("namefolder",type=str,default=1,
                         help="paramaters tested")
+    parser.add_argument("r",type=str,default=1,
+                        help="r tested")
 
 
     args   = parser.parse_args()
@@ -238,23 +154,20 @@ def main():
     nstep = args.steps
     limit = args.limit
     Name = args.namefolder
+    rparam = args.r
     pather = os.getcwd() + '\\Data' + "\\" + Name
+    '''
     try:
         os.mkdir(pather)
     except:
         pass
+    '''
     fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep)
-    rpar = np.array([10,22,24.5,100,126.52,150,166.3,212])
 
-    tests = 1
-    for rparam in rpar:
-        print('Testing paramater: ' + str(rparam))
-        print(str((tests)/limit)+"% Done ")
-        x,y,it = fINT(fRHS,fORD,fBVP,x0,y0,x1,nstep,s=10,b=8/3,r=rparam)
-        check(x,y,it,rparam,tests, Name)
-        if tests == limit:
-            break
-        tests +=1
+    x,y,it = fINT(fRHS,fORD,fBVP,x0,y0,x1,nstep,s=10,b=8/3,r=rparam)
+    check(x,y,it,rparam, Name)
+
+
     plt.show()
     
 
