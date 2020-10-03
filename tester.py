@@ -1,23 +1,54 @@
+import wave, struct, math, random
+import os
 import numpy as np
+import pyaudio
+import os
+import wave, struct
 import matplotlib.pyplot as plt
-from scipy.integrate import odeint
-from mpl_toolkits.mplot3d import Axes3D
+from scipy.io import wavfile
 
-rho = 28.0
-sigma = 10.0
-beta = 8.0 / 3.0
+def playback(path):
+    print("MOODY BLUES :REWIND")
+    CHUNK = chunk
+    wf = wave.open(path, 'rb')
 
-def f(state, t):
-    x, y, z = state  # Unpack the state vector
-    return sigma * (y - x), x * (rho - z) - y, x * y - beta * z  # Derivatives
+    # instantiate PyAudio (1)
+    p = pyaudio.PyAudio()
 
-state0 = [1.0, 1.0, 1.0]
-#state0 = [np.sqrt(beta*(rho-1)), np.sqrt(beta*(rho-1)), rho-1]
-t = np.arange(0.0, 40.0, 0.01)
-states = odeint(f, state0, t)
+    # open stream (2)
+    stream = p.open(format=p.get_format_from_width(wf.getsampwidth()),
+                    channels=wf.getnchannels(),
+                    rate=wf.getframerate(),
+                    output=True)
 
-fig = plt.figure()
-ax = fig.gca(projection="3d")
-ax.plot(states[:, 0], states[:, 1], states[:, 2])
-plt.draw()
-plt.show()
+    # read data
+    data = wf.readframes(CHUNK)
+
+    # play stream (3)
+    while len(data) > 0:
+        stream.write(data)
+        data = wf.readframes(CHUNK)
+
+    # stop stream (4)
+    stream.stop_stream()
+    stream.close()
+
+    # close PyAudio (5)
+    p.terminate()
+
+
+
+chunk = 1000
+sampleRate = 44100.0 # hertz
+duration = 2.0 # seconds
+#frequency = 440.0 # hertz
+obj = wave.open('sound.wav','w')
+obj.setnchannels(1) # mono
+obj.setsampwidth(2)
+obj.setframerate(sampleRate)
+for i in range(99999):
+   value = random.randint(-32767, 32767)
+   data = struct.pack('<h', value)
+   obj.writeframesraw( data )
+obj.close()
+playback(os.getcwd() + "\sound.wav")

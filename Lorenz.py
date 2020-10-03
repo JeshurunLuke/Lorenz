@@ -13,6 +13,7 @@ import numpy as np
 import mpl_toolkits.mplot3d.axes3d as p3
 from matplotlib import animation
 import os
+import audio as ad
 
 
 
@@ -170,20 +171,26 @@ def main():
     parser.add_argument("steps",type=int,default=100,
                         help="number of steps")
     parser.add_argument("ver",type=int,default=1,
-                        help="1:Lorenz 2:Unperturbed")
+                        help="1:Lorenz\n" 
+                        "   2:Unperturbed")
     parser.add_argument("namefolder",type=str,default=1,
                         help="paramaters tested")
     parser.add_argument("r",type=str,default=1,
                         help="r tested")
-
+    parser.add_argument("sound",type=str,default=1,
+                        help="record: recording\n"
+                          "     binary: binary\n" 
+                          "     NA: for version 1 and 2" )
 
     args   = parser.parse_args()
 
     stepper= args.stepper
-    nstep = args.steps
+    nstep = args.steps-1
     ver = args.ver
     Name = args.namefolder
     rparam = args.r
+    sound = args.sound
+
     pather = os.getcwd() + '\\Data' + "\\" + Name
     '''
     try:
@@ -204,8 +211,34 @@ def main():
         print(sum(it))
         print(sum(it2))
         check(x,y,it, rparam,Name,  receiving = yrec)
-    else:
+    elif ver == 1:
         check(x,y,it, rparam,Name,  receiving = y)
+    elif ver == 3:
+        set_step()
+
+        sample_rate = 50000
+        time = (nstep+1)/sample_rate
+        print(time)
+        if sound == 'record':
+            mode = 2
+        else:
+            mode = 1
+
+        s = ad.Setter(Name, mode,T = time, rate = sample_rate)
+        mask = s[1]/(max(s[1])) + y[0]
+        nstep = len(s[1])-1
+        plt.plot(s[0], mask)
+        plt.show()
+        fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = 2)
+        x,yrec,it2 = fINT(fRHS,fORD,fBVP,x0,y0,x1,nstep,s=10,b=8/3,r=rparam, driving = mask)
+        
+        recovered = (mask-yrec[0])*(max(s[1]))
+        
+        ad.play(recovered, Name, 'recovered' )
+        plt.plot(s[0], recovered)
+        plt.show()
+
+        
 
     plt.show()
     

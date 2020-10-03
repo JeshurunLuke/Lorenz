@@ -1,5 +1,5 @@
-/Data/Tester
-/Sound/Tester
+/Data/*
+/Sound/*
 .vscode/*
 
 __pycache__/*
