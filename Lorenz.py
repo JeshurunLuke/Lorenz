@@ -33,7 +33,7 @@ def param(x,**kwargs):
 # fRHS for the (non-)uniform string
 # Should return an array dydx containing three
 # elements corresponding to y'(x), y''(x), and lambda'(x).
-def dydx_lorenz(x,y,z,**kwargs):
+def dydx_lorenz(x,y,dx,**kwargs):
     dydx    = np.zeros(3)
     sigma, b, r = param(x,**kwargs)
     # ????? from here
@@ -42,20 +42,32 @@ def dydx_lorenz(x,y,z,**kwargs):
     dydx[2] = y[0]*y[1]-b*y[2]
     # ????? to here
     return dydx
-def dydx_lorenz6(x,y,z,**kwargs):
-    dydx    = np.zeros(6)
+def dydx_rlorenz(x,y,dx, **kwargs):
+    for key in kwargs:
+        if key == 'driving':
+            driving = kwargs[key]
+
+    dydx    = np.zeros(3)
     sigma, b, r = param(x,**kwargs)
+
+    currentx = driving[steps]
+  
+
     # ????? from here
     dydx[0] = sigma*(y[1]-y[0])
-    dydx[1] = r*y[0]-y[1]-y[0]*y[2]
-    dydx[2] = y[0]*y[1]-b*y[2]
+    dydx[1] = r*currentx-y[1]-currentx*y[2]
+    dydx[2] = currentx*y[1]-b*y[2]
     return dydx
     # ????? to her
+def get_step():
+    global steps
+    steps +=1
+    return steps
 
 
 
-
-def ode_init(stepper,nstep):
+def ode_init(stepper,nstep, **kwargs):
+    ver = int(kwargs['version'])
 
     fBVP = 0 # default is IVP, but see below.
     if (stepper == 'euler'):
@@ -72,7 +84,10 @@ def ode_init(stepper,nstep):
     x1 = 100
     x0 = 0
     fINT = ode_ivp
-    fRHS = dydx_lorenz
+    if ver == 1:
+        fRHS = dydx_lorenz
+    else:
+        fRHS = dydx_rlorenz
     fBVP = 0
     return fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep
 
@@ -84,6 +99,9 @@ def ode_init(stepper,nstep):
 # ODE IVP driver.
 # Already provided. Good to go; 2.5 free points :-)
 def ode_ivp(fRHS,fORD,fBVP,x0,y0,x1,nstep,**kwargs):
+    for key in kwargs:
+        if (key=='driving'):
+            get_step()                
 
     nvar    = y0.size                      # number of ODEs
     x       = np.linspace(x0,x1,nstep+1)   # generates equal-distant support points
@@ -92,6 +110,9 @@ def ode_ivp(fRHS,fORD,fBVP,x0,y0,x1,nstep,**kwargs):
     dx      = x[1]-x[0]                    # step size
     it      = np.zeros(nstep+1)
     for k in range(1,nstep+1):
+        for key in kwargs:
+            if (key=='driving'):
+                get_step()         
         y[:,k],it[k] = fORD(fRHS,x[k-1],y[:,k-1],dx,**kwargs)
     return x,y,it
 
@@ -103,31 +124,39 @@ def ode_ivp(fRHS,fORD,fBVP,x0,y0,x1,nstep,**kwargs):
 # a "score" via fSCO, i.e. a value for the rootfinder to zero out.
 
 #=======================================
-def check(x,y,it,r,Name):
+def check(x,y,it,r,Name, **kwargs):
     col = ['black','green','cyan','blue','red','black','black','black','black']
+
+    for key in kwargs:
+        if (key=='receiving'):
+            version = True
+            yrec = kwargs[key]
     fig = plt.figure()
     ax = p3.Axes3D(fig)
     
-    data = y
-    N = data.shape[1]-1
-    line, = ax.plot(y[0, :], y[1, :], y[2, :], '-o', color=col[1])
 
+    ax.plot(y[0, :], y[1, :], y[2, :], '-o', color=col[1])
+    ax.plot(yrec[0, :], yrec[1, :], yrec[2, :], '-o', color=col[4])
     # Setting the axes properties
-    ax.set_xlim3d([min(data[0])-1, max(data[0])+1])
+    ax.set_xlim3d([min(y[0])-1, max(y[0])+1])
     ax.set_xlabel('X')
 
-    ax.set_ylim3d([min(data[1])-1, max(data[1])+1])
+    ax.set_ylim3d([min(y[1])-1, max(y[1])+1])
     ax.set_ylabel('Y')
 
-    ax.set_zlim3d([min(data[2])-1, max(data[2])+1])
+    ax.set_zlim3d([min(y[2])-1, max(y[2])+1])
     ax.set_zlabel('Z')
     ax.legend()
+
 
 
 def update(num, data,line):
     line.set_data(data[:2, :num])
     line.set_3d_properties(data[2, :num])
-    
+
+def set_step():
+    global steps
+    steps = -1
     
 def main():
 
@@ -140,8 +169,8 @@ def main():
                              "   rk4  : Runge-Kutta 4th order\n")
     parser.add_argument("steps",type=int,default=100,
                         help="number of steps")
-    parser.add_argument("limit",type=int,default=1,
-                        help="paramaters tested")
+    parser.add_argument("ver",type=int,default=1,
+                        help="1:Lorenz 2:Unperturbed")
     parser.add_argument("namefolder",type=str,default=1,
                         help="paramaters tested")
     parser.add_argument("r",type=str,default=1,
@@ -152,7 +181,7 @@ def main():
 
     stepper= args.stepper
     nstep = args.steps
-    limit = args.limit
+    ver = args.ver
     Name = args.namefolder
     rparam = args.r
     pather = os.getcwd() + '\\Data' + "\\" + Name
@@ -162,11 +191,21 @@ def main():
     except:
         pass
     '''
-    fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep)
 
+
+    fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = 1)
     x,y,it = fINT(fRHS,fORD,fBVP,x0,y0,x1,nstep,s=10,b=8/3,r=rparam)
-    check(x,y,it,rparam, Name)
 
+    if ver ==2:
+        set_step()
+
+        fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = ver)
+        x,yrec,it2 = fINT(fRHS,fORD,fBVP,x0,y0,x1,nstep,s=10,b=8/3,r=rparam, driving = y[0])
+        print(sum(it))
+        print(sum(it2))
+        check(x,y,it, rparam,Name,  receiving = yrec)
+    else:
+        check(x,y,it, rparam,Name,  receiving = y)
 
     plt.show()
     
