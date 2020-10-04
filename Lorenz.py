@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import mpl_toolkits.mplot3d.axes3d as p3
 import matplotlib.animation as animation
 from matplotlib import pyplot as plt
-import numpy as np
+from scipy.fftpack import fft
 import mpl_toolkits.mplot3d.axes3d as p3
 from matplotlib import animation
 import os
@@ -231,6 +231,10 @@ def main():
             nstep = len(s[1])-1
             plt.plot(s[0], mask)
             plt.show()
+            fft_output = fft(mask)
+            plt.plot(mask, np.abs(fft_output))
+            plt.show()
+
             set_step()
 
             fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = 2)

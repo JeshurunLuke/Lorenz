@@ -9,31 +9,32 @@ from scipy.io import wavfile
 def binary(A, T,time, folder):
     
     signal = []
-    times = np.arange(0,time, T)
-    samplerate = 50000
-    amount =  (samplerate*time)/T
-    for elem in range(0, len(times)):
+    amount = int(signal_rate/T)
+    times =int(time*T)
+
+    for elem in range(0, times):
         shot = np.random.rand()
         if shot>0.5:
-            signal.append(1)
-            signal.append(1)
+            for elem in range(0, amount):
+                signal.append(1)
         else:
-            signal.append(0)
-            signal.append(0)
-    
+            for elem in range(0, amount):
+                signal.append(0)
+    times = np.linspace(0, time, len(signal))
     signal = A*np.array(signal)
     plt.figure(figsize=(30, 4))
-    plt.fill_between(times, signal) 
+    plt.plot(times, signal) 
     plt.xlim(times[0], times[-1])
     plt.xlabel('time (s)')
     plt.ylabel('amplitude')
     # You can set the format by changing the extension
     # like .pdf, .svg, .eps
-    pat = os.getcwd() + "/Sound/" + folder + "/Recording.png"
+    pat = os.getcwd() + "/Sound" + "/" + folder + "/Recording.png"
     plt.savefig(pat, dpi=100)
     plt.show()
-    signal = np.array([np.arange(0,time, 1/len(signal)),signal])
+    signal = np.array([times,signal])
     return signal
+
 def record(time,rate, pather):
     set_chunk()
     # the file name output you want to record into

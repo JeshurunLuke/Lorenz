@@ -5,6 +5,7 @@ import wave, struct
 import matplotlib.pyplot as plt
 from scipy.io import wavfile
 
+
 def binary(A, T,time,signal_rate, folder):
     
     signal = []
