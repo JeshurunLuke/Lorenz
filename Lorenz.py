@@ -81,13 +81,14 @@ def ode_init(stepper,nstep, **kwargs):
         fORD = step.rk45
     else:
         raise Exception('[ode_init]: invalid stepper value: %s' % (stepper))
-    y0 = np.array([10,10,10])
     x1 = 100
     x0 = 0
     fINT = ode_ivp
     if ver == 1:
+        y0 = np.array([10,10,10])
         fRHS = dydx_lorenz
-    else:
+    elif ver ==2:
+        y0 = np.array([10,10,10]) + np.array([0.1,0.1,0.1])
         fRHS = dydx_rlorenz
     fBVP = 0
     return fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep
@@ -158,7 +159,15 @@ def update(num, data,line):
 def set_step():
     global steps
     steps = -1
-    
+
+def error(x, y, yrec, sigma,b):
+    e = np.zeros((3,len(y[0])))
+    e[0] = y[0]-yrec[0]
+    e[1] = y[1]-yrec[1]
+    e[2] = y[2]-yrec[2]
+    L = -(e[0]-0.5*e[1])**2-0.75*e[1]**2-4*b*e[2]**2
+    plt.plot(x, L)
+    return L
 def main():
 
 
@@ -210,8 +219,7 @@ def main():
 
         fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = ver)
         x,yrec,it2 = fINT(fRHS,fORD,fBVP,x0,y0,x1,nstep,s=10,b=8/3,r=rparam, driving = y[0])
-        print(sum(it))
-        print(sum(it2))
+        L = error(x,y,yrec,10,8/3)
         check(x,y,it, rparam,Name,  receiving = yrec)
     elif ver == 1:
         fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = 1)
@@ -231,6 +239,7 @@ def main():
             nstep = len(s[1])-1
             plt.plot(s[0], mask)
             plt.show()
+            ad.play(mask*1000, Name, 'masked' )
             fft_output = fft(mask)
             plt.plot(mask, np.abs(fft_output))
             plt.show()
@@ -243,7 +252,7 @@ def main():
             mode = 1
             sample_rate = 50000
             time = (nstep+1)/sample_rate
-            cycpersec = 100 #Cycles/second
+            cycpersec = 2 #Cycles/second
             s = ad.Setter(Name, mode,T = cycpersec,time = time, A = 30000,rate = sample_rate)
 
             nstep = len(s[1])-1

@@ -11,10 +11,10 @@ def binary(A, T,time,signal_rate, folder):
     signal = []
     amount = int(signal_rate/T)
     times =int(time*T)
-
+    shot = 1
     for elem in range(0, times):
-        shot = np.random.rand()
-        if shot>0.5:
+        shot *= -1
+        if shot == 1:
             for elem in range(0, amount):
                 signal.append(1)
         else:
