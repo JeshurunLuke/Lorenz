@@ -4,14 +4,9 @@ import utilities as util
 import argparse	                 # allows us to deal with arguments to main()
 from argparse import RawTextHelpFormatter
 from mpl_toolkits.mplot3d import Axes3D
-import numpy as np
 import matplotlib.pyplot as plt
 import mpl_toolkits.mplot3d.axes3d as p3
-import matplotlib.animation as animation
-from matplotlib import pyplot as plt
 from scipy.fftpack import fft
-import mpl_toolkits.mplot3d.axes3d as p3
-from matplotlib import animation
 import os
 import audio as ad
 
@@ -88,7 +83,7 @@ def ode_init(stepper,nstep, **kwargs):
         y0 = np.array([10,10,10])
         fRHS = dydx_lorenz
     elif ver ==2:
-        y0 = np.array([10,10,10]) + np.array([0.1,0.1,0.1])
+        y0 = np.array([10,10,10]) + np.array([0.1,0.1,0.1]) #Displacement Vector
         fRHS = dydx_rlorenz
     fBVP = 0
     return fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep
@@ -165,8 +160,12 @@ def error(x, y, yrec, sigma,b):
     e[0] = y[0]-yrec[0]
     e[1] = y[1]-yrec[1]
     e[2] = y[2]-yrec[2]
-    L = -(e[0]-0.5*e[1])**2-0.75*e[1]**2-4*b*e[2]**2
-    plt.plot(x, L)
+    Ldot = -(e[0]-0.5*e[1])**2-0.75*(e[1]**2)-4*b*(e[2]**2) #Lyaponev Derivative
+    plt.plot(x, Ldot)
+    plt.show()
+    L = 0.5*(1/sigma)*(e[0]**2) + e[1]**2 + e[2]**2 #Lyaponev Function
+    plt.plot(x,L)
+    plt.show()
     return L
 def main():
 
@@ -232,7 +231,7 @@ def main():
             x,y,it = fINT(fRHS,fORD,fBVP,x0,y0,x1,nstep,s=10,b=8/3,r=rparam)
             mode = 2
             sample_rate = 50000
-            time = (nstep+1)/sample_rate
+            time = (nstep+1)/sample_rate #NEEDS TO BE DIVISABLE
 
             s = ad.Setter(Name, mode,T = time, rate = sample_rate)
             mask = s[1]/(max(s[1])) + y[0]
