@@ -1,20 +1,24 @@
 import numpy as np
 import pyaudio
+
 import os
 import wave, struct
 import matplotlib.pyplot as plt
 from scipy.io import wavfile
 
-
-def binary(A, T, folder):
+def binary(A, T,time, folder):
     
     signal = []
-    times = np.arange(0,100, T)
+    times = np.arange(0,time, T)
+    samplerate = 50000
+    amount =  (samplerate*time)/T
     for elem in range(0, len(times)):
         shot = np.random.rand()
         if shot>0.5:
             signal.append(1)
+            signal.append(1)
         else:
+            signal.append(0)
             signal.append(0)
     
     signal = A*np.array(signal)
@@ -25,16 +29,16 @@ def binary(A, T, folder):
     plt.ylabel('amplitude')
     # You can set the format by changing the extension
     # like .pdf, .svg, .eps
-    pat = os.getcwd() + "/Sound" + "/" + folder + "/Recording.png"
+    pat = os.getcwd() + "/Sound/" + folder + "/Recording.png"
     plt.savefig(pat, dpi=100)
     plt.show()
-    signal = np.array([times,signal])
+    signal = np.array([np.arange(0,time, 1/len(signal)),signal])
     return signal
 def record(time,rate, pather):
+    set_chunk()
     # the file name output you want to record into
     filename = pather
     # set the chunk size of 1024 samples
-    chunk = 1024
     # sample format
     FORMAT = pyaudio.paInt16
     # mono, change to 2 if you want stereo
@@ -79,7 +83,7 @@ def record(time,rate, pather):
     wf.close()
 def playback(path):
     print("MOODY BLUES :REWIND")
-    CHUNK = 1024
+    CHUNK = chunk
     wf = wave.open(path, 'rb')
 
     # instantiate PyAudio (1)
@@ -123,11 +127,32 @@ def waveform(pather, folder):
     plt.show()
     sound = np.array([times,data])
     return sound
+def play(sound, foldername, name):
+    chunk = 1000
+    sampleRate = 50000.0 # hertz
+    duration = 2.0 # seconds
+
+    obj = wave.open(os.getcwd() +"/Sound/" + foldername+ '/' + name +  '.wav','w')
+    obj.setnchannels(1) # mono
+    obj.setsampwidth(2)
+    obj.setframerate(sampleRate)
+    for i in range(len(sound)):
+        value = int(sound[i])
+        data = struct.pack('<h', value)
+        obj.writeframesraw( data )
+    obj.close()
+    playback(os.getcwd() +"/Sound/" + foldername+ '/' + name +  '.wav')
 
 
+
+def set_chunk():
+    global chunk
+    
+    chunk = 1000
 
 
 def Setter(folder, mode, **kwargs): #Provide Folder Name(inside sound Directory) #Provide a name for the wav file #Mode 1- binary 2 - record
+    set_chunk()
     name = "Recording"
     for key in kwargs:
         if (key=='A'): #Amplitude
@@ -136,6 +161,8 @@ def Setter(folder, mode, **kwargs): #Provide Folder Name(inside sound Directory)
             T = float(kwargs[key])
         if (key=='rate'):
             rate = int(kwargs[key])
+        if (key=='time'):
+            time = int(kwargs[key])
      
 
     path = os.getcwd() + "/Sound/" + str(folder)
@@ -145,7 +172,7 @@ def Setter(folder, mode, **kwargs): #Provide Folder Name(inside sound Directory)
         pass
     pather = path + "/" + name
     if mode == 1:
-        signal = binary(A,T,folder)
+        signal = binary(A,T,time, folder)
     else:
         record(T,rate, pather)   
         playback(pather)

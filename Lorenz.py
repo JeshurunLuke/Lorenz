@@ -200,10 +200,12 @@ def main():
     '''
 
 
-    fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = 1)
-    x,y,it = fINT(fRHS,fORD,fBVP,x0,y0,x1,nstep,s=10,b=8/3,r=rparam)
+
 
     if ver ==2:
+        fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = 1)
+        x,y,it = fINT(fRHS,fORD,fBVP,x0,y0,x1,nstep,s=10,b=8/3,r=rparam)
+
         set_step()
 
         fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = ver)
@@ -212,29 +214,51 @@ def main():
         print(sum(it2))
         check(x,y,it, rparam,Name,  receiving = yrec)
     elif ver == 1:
+        fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = 1)
+        x,y,it = fINT(fRHS,fORD,fBVP,x0,y0,x1,nstep,s=10,b=8/3,r=rparam)
         check(x,y,it, rparam,Name,  receiving = y)
     elif ver == 3:
-        set_step()
 
-        sample_rate = 50000
-        time = (nstep+1)/sample_rate
-        print(time)
         if sound == 'record':
+            fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = 1)
+            x,y,it = fINT(fRHS,fORD,fBVP,x0,y0,x1,nstep,s=10,b=8/3,r=rparam)
             mode = 2
-        else:
-            mode = 1
+            sample_rate = 50000
+            time = (nstep+1)/sample_rate
 
-        s = ad.Setter(Name, mode,T = time, rate = sample_rate)
-        mask = s[1]/(max(s[1])) + y[0]
-        nstep = len(s[1])-1
-        plt.plot(s[0], mask)
-        plt.show()
-        fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = 2)
-        x,yrec,it2 = fINT(fRHS,fORD,fBVP,x0,y0,x1,nstep,s=10,b=8/3,r=rparam, driving = mask)
+            s = ad.Setter(Name, mode,T = time, rate = sample_rate)
+            mask = s[1]/(max(s[1])) + y[0]
+            nstep = len(s[1])-1
+            plt.plot(s[0], mask)
+            plt.show()
+            set_step()
+
+            fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = 2)
+            x,yrec,it2 = fINT(fRHS,fORD,fBVP,x0,y0,x1,nstep,s=10,b=8/3,r=rparam, driving = mask)
+        elif sound == 'binary':
+            mode = 1
+            sample_rate = 50000
+            time = (nstep+1)/sample_rate
+            cycpersec = 100 #Cycles/second
+            s = ad.Setter(Name, mode,T = cycpersec,time = time, A = 30000,rate = sample_rate)
+
+            nstep = len(s[1])-1
+
+            fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = 1)
+            x,y,it = fINT(fRHS,fORD,fBVP,x0,y0,x1,nstep,s=10,b=8/3,r=rparam)
+
+
+            mask = s[1]/(max(s[1])) + y[0]
+            plt.plot(s[0], mask)
+            plt.show()
+            fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = 2)
+            set_step()
+
+            x,yrec,it2 = fINT(fRHS,fORD,fBVP,x0,y0,x1,nstep,s=10,b=8/3,r=rparam, driving = mask)
         
         recovered = (mask-yrec[0])*(max(s[1]))
-        
-        ad.play(recovered, Name, 'recovered' )
+        if mode == 2:
+            ad.play(recovered, Name, 'recovered' )
         plt.plot(s[0], recovered)
         plt.show()
 
