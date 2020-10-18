@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import mpl_toolkits.mplot3d.axes3d as p3
 from scipy.fftpack import fft
 import os
-import audio as ad
+import audiolinux as ad
 
 
 
@@ -123,7 +123,8 @@ def ode_ivp(fRHS,fORD,fBVP,x0,y0,x1,nstep,**kwargs):
 #=======================================
 def check(x,y,it,r,Name, **kwargs):
     col = ['black','green','cyan','blue','red','black','black','black','black']
-
+    #EDit here
+    print("Hello")
     for key in kwargs:
         if (key=='receiving'):
             version = True
@@ -238,7 +239,7 @@ def main():
             nstep = len(s[1])-1
             plt.plot(s[0], mask)
             plt.show()
-            ad.play(mask*1000, Name, 'masked' )
+            ad.play(mask*100, Name, 'masked' )
             fft_output = fft(mask)
             plt.plot(mask, np.abs(fft_output))
             plt.show()
@@ -251,7 +252,7 @@ def main():
             mode = 1
             sample_rate = 50000
             time = (nstep+1)/sample_rate
-            cycpersec = 2 #Cycles/second
+            cycpersec = 1000 #Cycles/second
             s = ad.Setter(Name, mode,T = cycpersec,time = time, A = 30000,rate = sample_rate)
 
             nstep = len(s[1])-1
@@ -259,8 +260,9 @@ def main():
             fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = 1)
             x,y,it = fINT(fRHS,fORD,fBVP,x0,y0,x1,nstep,s=10,b=8/3,r=rparam)
 
-
-            mask = s[1]/(max(s[1])) + y[0]
+            print(max(y[0]))
+            print(max(s[1]))
+            mask = s[1] + y[0]*10000
             plt.plot(s[0], mask)
             plt.show()
             fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = 2)
