@@ -1,20 +1,21 @@
 import numpy as np
 import pyaudio
-
 import os
 import wave, struct
 import matplotlib.pyplot as plt
 from scipy.io import wavfile
 
-def binary(A, T,time, folder):
+
+def binary(A, T,time,signal_rate, folder):
     
     signal = []
     amount = int(signal_rate/T)
     times =int(time*T)
 
+    shot = 1
     for elem in range(0, times):
-        shot = np.random.rand()
-        if shot>0.5:
+        shot *= -1
+        if shot == 1:
             for elem in range(0, amount):
                 signal.append(1)
         else:
@@ -34,7 +35,6 @@ def binary(A, T,time, folder):
     plt.show()
     signal = np.array([times,signal])
     return signal
-
 def record(time,rate, pather):
     set_chunk()
     # the file name output you want to record into
@@ -83,7 +83,7 @@ def record(time,rate, pather):
     # close the file
     wf.close()
 def playback(path):
-    print("MOODY BLUES :REWIND")
+    print(" :REWIND")
     CHUNK = chunk
     wf = wave.open(path, 'rb')
 
@@ -123,15 +123,13 @@ def waveform(pather, folder):
     plt.ylabel('amplitude')
     # You can set the format by changing the extension
     # like .pdf, .svg, .eps
-    pat = os.getcwd() + "/Sound/" + folder + "/recording.png"
+    pat = os.getcwd() + "/Sound" + "/" + folder + "/recording.png"
     plt.savefig(pat, dpi=100)
     plt.show()
     sound = np.array([times,data])
     return sound
-def play(sound, foldername, name):
-    chunk = 1000
-    sampleRate = 50000.0 # hertz
-    duration = 2.0 # seconds
+def play(sound, foldername, name, sampleRate, duration):
+
 
     obj = wave.open(os.getcwd() +"/Sound/" + foldername+ '/' + name +  '.wav','w')
     obj.setnchannels(1) # mono
@@ -173,7 +171,7 @@ def Setter(folder, mode, **kwargs): #Provide Folder Name(inside sound Directory)
         pass
     pather = path + "/" + name
     if mode == 1:
-        signal = binary(A,T,time, folder)
+        signal = binary(A,T,time,rate, folder)
     else:
         record(T,rate, pather)   
         playback(pather)

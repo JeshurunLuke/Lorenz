@@ -54,6 +54,23 @@ def dydx_rlorenz(x,y,dx, **kwargs):
     dydx[1] = r*currentx-y[1]-currentx*y[2]
     dydx[2] = currentx*y[1]-b*y[2]
     return dydx
+def dydx_rylorenz(x,y,dx, **kwargs):
+    for key in kwargs:
+        if key == 'driving':
+            driving = kwargs[key]
+
+    dydx    = np.zeros(3)
+    sigma, b, r = param(x,**kwargs)
+
+    currenty = driving[steps]
+  
+
+    # ????? from here
+    dydx[0] = sigma*(currenty-y[0])
+    dydx[1] = r*y[0]-y[1]-y[0]*y[2]
+    dydx[2] = y[0]*currenty-b*y[2]
+    return dydx
+
     # ????? to her
 def get_step():
     global steps
@@ -64,6 +81,8 @@ def get_step():
 
 def ode_init(stepper,nstep, **kwargs):
     ver = int(kwargs['version'])
+ 
+    var = int(kwargs['var'])
 
     fBVP = 0 # default is IVP, but see below.
     if (stepper == 'euler'):
@@ -83,8 +102,11 @@ def ode_init(stepper,nstep, **kwargs):
         y0 = np.array([10,10,10])
         fRHS = dydx_lorenz
     elif ver ==2:
-        y0 = np.array([10,10,10]) + np.array([0.1,0.1,0.1]) #Displacement Vector
-        fRHS = dydx_rlorenz
+        y0 = np.array([10,10,10])# + np.array([0.1,0.1,0.1]) #Displacement Vector
+        if var == 1:
+            fRHS = dydx_rylorenz
+        else:
+            fRHS = dydx_rlorenz
     fBVP = 0
     return fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep
 
@@ -98,7 +120,8 @@ def ode_init(stepper,nstep, **kwargs):
 def ode_ivp(fRHS,fORD,fBVP,x0,y0,x1,nstep,**kwargs):
     for key in kwargs:
         if (key=='driving'):
-            get_step()                
+            get_step()  
+                   
 
     nvar    = y0.size                      # number of ODEs
     x       = np.linspace(x0,x1,nstep+1)   # generates equal-distant support points
@@ -128,6 +151,7 @@ def check(x,y,it,r,Name, **kwargs):
         if (key=='receiving'):
             version = True
             yrec = kwargs[key]
+      
     fig = plt.figure()
     ax = p3.Axes3D(fig)
     
@@ -197,6 +221,11 @@ def main():
                         help="  record: recording\n"
                           "  binary: binary\n" 
                           "  NA: for version 1 and 2" )
+    parser.add_argument("drive",type=str,default=1,
+                        help="Drive signal?\n"
+                          "  x: x is your drive\n" 
+                          "  y: y is your drive\n"
+                          "  NA: if version 1" )
 
     args   = parser.parse_args()
 
@@ -206,6 +235,11 @@ def main():
     Name = args.namefolder
     rparam = args.r
     sound = args.sound
+    drive = args.drive
+    if drive == 'x':
+        g = 0
+    elif drive == 'y':
+        g = 1
 
     pather = os.getcwd() + '\\Data' + "\\" + Name
     '''
@@ -219,23 +253,22 @@ def main():
 
 
     if ver ==2:
-        fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = 1)
+        fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = 1, var = g)
         x,y,it = fINT(fRHS,fORD,fBVP,x0,y0,x1,nstep,s=10,b=8/3,r=rparam)
 
         set_step()
 
-        fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = ver)
-        x,yrec,it2 = fINT(fRHS,fORD,fBVP,x0,y0,x1,nstep,s=10,b=8/3,r=rparam, driving = y[0])
+        fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = ver, var = g)
+        x,yrec,it2 = fINT(fRHS,fORD,fBVP,x0,y0,x1,nstep,s=10,b=8/3,r=rparam, driving = y[g])
         L = error(x,y,yrec,10,8/3)
         check(x,y,it, rparam,Name,  receiving = yrec)
     elif ver == 1:
-        fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = 1)
+        fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = 1, var = 0)
         x,y,it = fINT(fRHS,fORD,fBVP,x0,y0,x1,nstep,s=10,b=8/3,r=rparam)
         check(x,y,it, rparam,Name)
     elif ver == 3:
-
         if sound == 'record':
-            fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = 1)
+            fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = 1, var = g)
             x,y,it = fINT(fRHS,fORD,fBVP,x0,y0,x1,nstep,s=10,b=8/3,r=rparam)
             mode = 2
             sample_rate = 5000
@@ -245,14 +278,14 @@ def main():
             #print("again")
             #ad.play(s[1], Name, 'masked', sample_rate, time)
 
-            mask = s[1]/(max(s[1])) + y[0]
+            mask = s[1]/(max(s[1])) + y[g]
             nstep = len(s[1])-1
             
 
             figure, axs = plt.subplots(2, 1, figsize=(30,4))
             plt.subplots_adjust(hspace=1)
 
-            axs[0].plot(s[0], y[0]) 
+            axs[0].plot(s[0], y[g]) 
             axs[0].set_xlim(s[0][0], s[0][-1])
             axs[0].set_xlabel('time (s)')
             axs[0].set_ylabel('amplitude')
@@ -263,7 +296,8 @@ def main():
             axs[1].set_ylabel('amplitude')
             axs[1].set_title('Chaos + signal')
             plt.show()
-            ad.play(mask*1000, Name, 'masked', sample_rate, time)
+            print("masked signal")
+            ad.play(mask*500, Name, 'masked', sample_rate, time)
 
             figure, axs = plt.subplots(2, 1, figsize=(30,4))
 
@@ -302,7 +336,7 @@ def main():
 
             set_step()
 
-            fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = 2)
+            fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = 2, var = g)
             x,yrec,it2 = fINT(fRHS,fORD,fBVP,x0,y0,x1,nstep,s=10,b=8/3,r=rparam, driving = mask)
         elif sound == 'binary':
             mode = 1
@@ -313,21 +347,25 @@ def main():
 
             nstep = len(s[1])-1
 
-            fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = 1)
+            fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = 1, var = g)
             x,y,it = fINT(fRHS,fORD,fBVP,x0,y0,x1,nstep,s=10,b=8/3,r=rparam)
 
 
-            mask = s[1]/(max(s[1])) + y[0]
+            mask = s[1]/(max(s[1])) + y[g]
             plt.figure(figsize=(30, 4))
             plt.plot(s[0], mask)
             plt.show()
-            fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = 2)
+            fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = 2, var = g)
             set_step()
 
             x,yrec,it2 = fINT(fRHS,fORD,fBVP,x0,y0,x1,nstep,s=10,b=8/3,r=rparam, driving = mask)
         
-        recovered = (mask-yrec[0])*(max(s[1]))
+        recovered = (mask-yrec[g])*(max(s[1]))
         if mode == 2:
+            if abs(max(recovered))>32767:
+                recovered = recovered*32767/(max(recovered+10))
+
+            print("Recovered Signal")
             ad.play(recovered, Name, 'recovered', sample_rate, time )
         plt.figure(figsize=(30, 4))
         plt.plot(s[0], recovered)
