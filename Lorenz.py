@@ -182,7 +182,8 @@ def main():
                         help="stepping function:\n"
                              "   euler: Euler step\n"
                              "   rk2  : Runge-Kutta 2nd order\n"
-                             "   rk4  : Runge-Kutta 4th order\n")
+                             "   rk4  : Runge-Kutta 4th order\n"
+                             "   rk45 : Runge-Kutta 45\n")
     parser.add_argument("steps",type=int,default=100,
                         help="number of steps")
     parser.add_argument("ver",type=int,default=1,
