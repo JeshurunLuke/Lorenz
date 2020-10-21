@@ -11,6 +11,7 @@ def binary(A, T,time,signal_rate, folder):
     signal = []
     amount = int(signal_rate/T)
     times =int(time*T)
+
     shot = 1
     for elem in range(0, times):
         shot *= -1
@@ -82,7 +83,7 @@ def record(time,rate, pather):
     # close the file
     wf.close()
 def playback(path):
-    print("MOODY BLUES :REWIND")
+    print(" :REWIND")
     CHUNK = chunk
     wf = wave.open(path, 'rb')
 
@@ -127,10 +128,8 @@ def waveform(pather, folder):
     plt.show()
     sound = np.array([times,data])
     return sound
-def play(sound, foldername, name):
-    chunk = 1000
-    sampleRate = 50000.0 # hertz
-    duration = 2.0 # seconds
+def play(sound, foldername, name, sampleRate, duration):
+
 
     obj = wave.open(os.getcwd() +"\\Sound\\" + foldername+ '\\' + name +  '.wav','w')
     obj.setnchannels(1) # mono

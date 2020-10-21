@@ -123,7 +123,7 @@ def ode_ivp(fRHS,fORD,fBVP,x0,y0,x1,nstep,**kwargs):
 #=======================================
 def check(x,y,it,r,Name, **kwargs):
     col = ['black','green','cyan','blue','red','black','black','black','black']
-
+    version = False
     for key in kwargs:
         if (key=='receiving'):
             version = True
@@ -132,8 +132,9 @@ def check(x,y,it,r,Name, **kwargs):
     ax = p3.Axes3D(fig)
     
 
-    ax.plot(y[0, :], y[1, :], y[2, :], '-o', color=col[1])
-    ax.plot(yrec[0, :], yrec[1, :], yrec[2, :], '-o', color=col[4])
+    ax.plot(y[0, :], y[1, :], y[2, :], color=col[1])
+    if version:
+        ax.plot(yrec[0, :], yrec[1, :], yrec[2, :], color=col[4])
     # Setting the axes properties
     ax.set_xlim3d([min(y[0])-1, max(y[0])+1])
     ax.set_xlabel('X')
@@ -160,11 +161,17 @@ def error(x, y, yrec, sigma,b):
     e[0] = y[0]-yrec[0]
     e[1] = y[1]-yrec[1]
     e[2] = y[2]-yrec[2]
+    
+    figure, axs = plt.subplots(2, 1, figsize=(30,4))
+
+    plt.subplots_adjust(hspace=1)
+
     Ldot = -(e[0]-0.5*e[1])**2-0.75*(e[1]**2)-4*b*(e[2]**2) #Lyaponev Derivative
-    plt.plot(x, Ldot)
-    plt.show()
+    axs[0].plot(x, Ldot)
+    axs[0].set_title('Lyaponev Derivative')
     L = 0.5*(1/sigma)*(e[0]**2) + e[1]**2 + e[2]**2 #Lyaponev Function
-    plt.plot(x,L)
+    axs[1].plot(x,L)
+    axs[1].set_title('Lyaponev Function')
     plt.show()
     return L
 def main():
@@ -179,16 +186,17 @@ def main():
     parser.add_argument("steps",type=int,default=100,
                         help="number of steps")
     parser.add_argument("ver",type=int,default=1,
-                        help="1:Lorenz\n" 
-                        "   2:Unperturbed")
+                        help="  1:Lorenz\n" 
+                        "  2:Unperturbed\n"
+                        "  3: Record/Binary Perturbation")
     parser.add_argument("namefolder",type=str,default=1,
                         help="paramaters tested")
     parser.add_argument("r",type=str,default=1,
                         help="r tested")
     parser.add_argument("sound",type=str,default=1,
-                        help="record: recording\n"
-                          "     binary: binary\n" 
-                          "     NA: for version 1 and 2" )
+                        help="  record: recording\n"
+                          "  binary: binary\n" 
+                          "  NA: for version 1 and 2" )
 
     args   = parser.parse_args()
 
@@ -223,24 +231,73 @@ def main():
     elif ver == 1:
         fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = 1)
         x,y,it = fINT(fRHS,fORD,fBVP,x0,y0,x1,nstep,s=10,b=8/3,r=rparam)
-        check(x,y,it, rparam,Name,  receiving = y)
+        check(x,y,it, rparam,Name)
     elif ver == 3:
 
         if sound == 'record':
             fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = 1)
             x,y,it = fINT(fRHS,fORD,fBVP,x0,y0,x1,nstep,s=10,b=8/3,r=rparam)
             mode = 2
-            sample_rate = 50000
+            sample_rate = 5000
             time = (nstep+1)/sample_rate #NEEDS TO BE DIVISABLE
 
             s = ad.Setter(Name, mode,T = time, rate = sample_rate)
+            #print("again")
+            #ad.play(s[1], Name, 'masked', sample_rate, time)
+
             mask = s[1]/(max(s[1])) + y[0]
             nstep = len(s[1])-1
-            plt.plot(s[0], mask)
+            
+
+            figure, axs = plt.subplots(2, 1, figsize=(30,4))
+            plt.subplots_adjust(hspace=1)
+
+            axs[0].plot(s[0], y[0]) 
+            axs[0].set_xlim(s[0][0], s[0][-1])
+            axs[0].set_xlabel('time (s)')
+            axs[0].set_ylabel('amplitude')
+            axs[0].set_title('Chaotic x')
+            axs[1].plot(s[0], mask) 
+            axs[1].set_xlim(s[0][0], s[0][-1])
+            axs[1].set_xlabel('time (s)')
+            axs[1].set_ylabel('amplitude')
+            axs[1].set_title('Chaos + signal')
             plt.show()
-            ad.play(mask*1000, Name, 'masked' )
-            fft_output = fft(mask)
-            plt.plot(mask, np.abs(fft_output))
+            ad.play(mask*1000, Name, 'masked', sample_rate, time)
+
+            figure, axs = plt.subplots(2, 1, figsize=(30,4))
+
+            plt.subplots_adjust(hspace=1)
+
+            fftfile = s[1]
+            times  = np.arange(0, time, 1/sample_rate)
+            fourierTransform = np.fft.fft(fftfile)/len(fftfile)
+            fourierTransform = fourierTransform[range(int(len(fftfile)/2))]
+            tpCount     = len(fftfile)
+            values      = np.arange(int(tpCount/2))
+            timePeriod  = tpCount/sample_rate
+            frequencies = values/timePeriod
+
+
+            axs[0].plot(frequencies, abs(fourierTransform))
+            axs[0].set_xlabel('Frequency')
+            axs[0].set_ylabel('Amplitude')
+            axs[0].set_title('Signal')
+
+            fftfile = mask
+            times  = np.arange(0, time, 1/sample_rate)
+            fourierTransform = np.fft.fft(fftfile)/len(fftfile)
+            fourierTransform = fourierTransform[range(int(len(fftfile)/2))]
+            tpCount     = len(fftfile)
+            values      = np.arange(int(tpCount/2))
+            timePeriod  = tpCount/sample_rate
+            frequencies = values/timePeriod
+
+            axs[1].plot(frequencies, abs(fourierTransform))
+            axs[1].set_xlabel('Frequency')
+            axs[1].set_ylabel('Amplitude')
+            axs[1].set_title('Sig+Chaos')
+
             plt.show()
 
             set_step()
@@ -249,7 +306,7 @@ def main():
             x,yrec,it2 = fINT(fRHS,fORD,fBVP,x0,y0,x1,nstep,s=10,b=8/3,r=rparam, driving = mask)
         elif sound == 'binary':
             mode = 1
-            sample_rate = 50000
+            sample_rate = 5000
             time = (nstep+1)/sample_rate
             cycpersec = 2 #Cycles/second
             s = ad.Setter(Name, mode,T = cycpersec,time = time, A = 30000,rate = sample_rate)
@@ -261,6 +318,7 @@ def main():
 
 
             mask = s[1]/(max(s[1])) + y[0]
+            plt.figure(figsize=(30, 4))
             plt.plot(s[0], mask)
             plt.show()
             fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = 2)
@@ -270,7 +328,8 @@ def main():
         
         recovered = (mask-yrec[0])*(max(s[1]))
         if mode == 2:
-            ad.play(recovered, Name, 'recovered' )
+            ad.play(recovered, Name, 'recovered', sample_rate, time )
+        plt.figure(figsize=(30, 4))
         plt.plot(s[0], recovered)
         plt.show()
 
