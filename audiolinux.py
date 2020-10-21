@@ -6,7 +6,7 @@ import wave, struct
 import matplotlib.pyplot as plt
 from scipy.io import wavfile
 
-def binary(A, T,time, folder):
+def binary(A, T,time,signal_rate, folder):
     
     signal = []
     amount = int(signal_rate/T)
@@ -173,7 +173,7 @@ def Setter(folder, mode, **kwargs): #Provide Folder Name(inside sound Directory)
         pass
     pather = path + "/" + name
     if mode == 1:
-        signal = binary(A,T,time, folder)
+        signal = binary(A,T,time,rate, folder)
     else:
         record(T,rate, pather)   
         playback(pather)
