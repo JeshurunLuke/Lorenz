@@ -1,57 +1,51 @@
-<<<<<<< HEAD
-=======
-import wave, struct, math, random
-import os
+from __future__ import division, print_function
+
+import sys
+import time
+import multiprocessing as mp
 import numpy as np
-import pyaudio
-import os
-import wave, struct
-import matplotlib.pyplot as plt
-from scipy.io import wavfile
-
-def playback(path):
-    print("MOODY BLUES :REWIND")
-    CHUNK = chunk
-    wf = wave.open(path, 'rb')
-
-    # instantiate PyAudio (1)
-    p = pyaudio.PyAudio()
-
-    # open stream (2)
-    stream = p.open(format=p.get_format_from_width(wf.getsampwidth()),
-                    channels=wf.getnchannels(),
-                    rate=wf.getframerate(),
-                    output=True)
-
-    # read data
-    data = wf.readframes(CHUNK)
-
-    # play stream (3)
-    while len(data) > 0:
-        stream.write(data)
-        data = wf.readframes(CHUNK)
-
-    # stop stream (4)
-    stream.stop_stream()
-    stream.close()
-
-    # close PyAudio (5)
-    p.terminate()
+from scipy.integrate import odeint
 
 
 
-chunk = 1000
-sampleRate = 44100.0 # hertz
-duration = 2.0 # seconds
-#frequency = 440.0 # hertz
-obj = wave.open('sound.wav','w')
-obj.setnchannels(1) # mono
-obj.setsampwidth(2)
-obj.setframerate(sampleRate)
-for i in range(99999):
-   value = random.randint(-32767, 32767)
-   data = struct.pack('<h', value)
-   obj.writeframesraw( data )
-obj.close()
-playback(os.getcwd() + "\sound.wav")
->>>>>>> 9f684b98511b55d36749e0eec55d1e39e37d18e8
+def lorenz(q, t, sigma, rho, beta):
+    x, y, z = q
+    return [sigma*(y - x), x*(rho - z) - y, x*y - beta*z]
+
+
+def solve(ic):
+    t = np.linspace(0, 200, 801)
+    sigma = 10.0
+    rho = 28.0
+    beta = 8/3
+    sol = odeint(lorenz, ic, t, args=(sigma, rho, beta), rtol=1e-10, atol=1e-12)
+    return sol
+
+
+if __name__ == "__main__":
+    ics = np.random.randn(10, 3)
+    print(ics)
+
+    print("multiprocessing:", end='')
+    tstart = time.time()
+    num_processes = 5
+    p = mp.Pool(num_processes)
+    mp_solutions = p.map(solve, ics)
+    tend = time.time()
+    tmp = tend - tstart
+    print(" %8.3f seconds" % tmp)
+
+    print("serial:         ", end='')
+    sys.stdout.flush()
+    tstart = time.time()
+    serial_solutions = [solve(ic) for ic in ics]
+    tend = time.time()
+    tserial = tend - tstart
+    print(" %8.3f seconds" % tserial)
+
+    print("num_processes = %i, speedup = %.2f" % (num_processes, tserial/tmp))
+
+    check = [(sol1 == sol2).all()
+             for sol1, sol2 in zip(serial_solutions, mp_solutions)]
+    if not all(check):
+        print("There was at least one discrepancy in the solutions.")

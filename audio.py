@@ -58,7 +58,7 @@ def record(time,rate, pather):
                     frames_per_buffer=chunk)
     frames = []
     print("Recording...")
-    for i in range(int(sample_rate / chunk * record_seconds)):
+    for _ in range(int(sample_rate / chunk * record_seconds)):
         data = stream.read(chunk)
         # if you want to hear your voice while recording
         stream.write(data)
@@ -110,22 +110,24 @@ def playback(path):
 
     # close PyAudio (5)
     p.terminate()
-def waveform(pather, folder):
+def waveform(pather, folder, graph):
     samplerate, data = wavfile.read(pather)
     times = np.arange(len(data))/float(samplerate)
 
     # Make the plot
     # You can tweak the figsize (width, height) in inches
-    plt.figure(figsize=(30, 4))
-    plt.fill_between(times, data) 
-    plt.xlim(times[0], times[-1])
-    plt.xlabel('time (s)')
-    plt.ylabel('amplitude')
+    if graph:
+        plt.figure(figsize=(30, 4))
+        plt.fill_between(times, data) 
+        plt.xlim(times[0], times[-1])
+        plt.xlabel('time (s)')
+        plt.ylabel('amplitude')
+        pat = os.getcwd() + "\\Sound" + "\\" + folder + "\\recording.png"
+        plt.savefig(pat, dpi=100)
+        plt.show()
     # You can set the format by changing the extension
     # like .pdf, .svg, .eps
-    pat = os.getcwd() + "\\Sound" + "\\" + folder + "\\recording.png"
-    plt.savefig(pat, dpi=100)
-    plt.show()
+
     sound = np.array([times,data])
     return sound
 def play(sound, foldername, name, sampleRate, duration):
@@ -175,7 +177,7 @@ def Setter(folder, mode, **kwargs): #Provide Folder Name(inside sound Directory)
     else:
         record(T,rate, pather)   
         playback(pather)
-        signal = waveform(pather,folder)
+        signal = waveform(pather,folder, False)
     return signal
 
 
