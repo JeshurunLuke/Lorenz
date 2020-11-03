@@ -1,16 +1,15 @@
-import numpy as np
-import odestep as step
-import utilities as util
-import argparse	                 # allows us to deal with arguments to main()
+import argparse  # allows us to deal with arguments to main()
+import multiprocessing as mp
+import os
 from argparse import RawTextHelpFormatter
-from mpl_toolkits.mplot3d import Axes3D
+
 import matplotlib.pyplot as plt
 import mpl_toolkits.mplot3d.axes3d as p3
-from scipy.fftpack import fft
-import os
-import multiprocessing as mp
+import numpy as np
+from mpl_toolkits.mplot3d import Axes3D
 import audio as ad
-
+import odestep as step
+import utilities as util
 
 
 def param(x,**kwargs):
@@ -21,15 +20,11 @@ def param(x,**kwargs):
             sigma = float(kwargs[key])
         if (key=='b'):
             b = float(kwargs[key])
-    sigma = 10
 
     # ????? to here
     return sigma,b,r
 
-#========================================
-# fRHS for the (non-)uniform string
-# Should return an array dydx containing three
-# elements corresponding to y'(x), y''(x), and lambda'(x).
+
 def dydx_lorenz(x,y,dx,**kwargs):
     dydx    = np.zeros(3)
     sigma, b, r = param(x,**kwargs)
@@ -40,14 +35,7 @@ def dydx_lorenz(x,y,dx,**kwargs):
     # ????? to here
     return dydx
 def dydx_rlorenz(x,y,dx, **kwargs):
-    for key in kwargs:
-        if key == 'driving':
-            driving = kwargs[key]
-
-    dydx    = np.zeros(3)
-    sigma, b, r = param(x,**kwargs)
-
-    currentx = driving[steps]
+    
   
 
     # ????? from here
@@ -81,9 +69,12 @@ def get_step():
 
 
 def ode_init(stepper,nstep, **kwargs):
-    
+    try:
+        time = int(kwargs['time'])
+    except:
+        print("Defaulting to: 100 ")
+        time = 100
     ver = int(kwargs['version'])
-    time = int(kwargs['time'])
     var = int(kwargs['var'])
 
     fBVP = 0 # default is IVP, but see below.
@@ -97,7 +88,7 @@ def ode_init(stepper,nstep, **kwargs):
         fORD = step.rk45
     else:
         raise Exception('[ode_init]: invalid stepper value: %s' % (stepper))
-    x1 = time
+    x1 = time*10 #time = 1
     x0 = 0
     fINT = ode_ivp
     if ver == 1:
@@ -112,13 +103,8 @@ def ode_init(stepper,nstep, **kwargs):
     fBVP = 0
     return fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep
 
-#========================================
-# Single rk4 step.
-# Already provided. Good to go; 2.5 free points :-)
 
-#========================================
-# ODE IVP driver.
-# Already provided. Good to go; 2.5 free points :-)
+
 def ode_ivp(fRHS,fORD,fBVP,x0,y0,x1,nstep,**kwargs):
     for key in kwargs:
         if (key=='driving'):
@@ -139,13 +125,7 @@ def ode_ivp(fRHS,fORD,fBVP,x0,y0,x1,nstep,**kwargs):
     return x,y,it
 
 
-#=======================================
-# A single trial shot.
-# Sets the initial values (guesses) via fLOA, calculates 
-# the corresponding solution via ode_ivp, and returns 
-# a "score" via fSCO, i.e. a value for the rootfinder to zero out.
 
-#=======================================
 def check(x,y,it,r,Name, **kwargs):
     col = ['black','green','cyan','blue','red','black','black','black','black']
     version = False
@@ -182,13 +162,13 @@ def set_step():
     global steps
     steps = -1
 
-def error(x, y, yrec, sigma,b):
+def error(x, y, yrec, sigma,b,g):
     e = np.zeros((3,len(y[0])))
     e[0] = y[0]-yrec[0]
     e[1] = y[1]-yrec[1]
     e[2] = y[2]-yrec[2]
     
-    figure, axs = plt.subplots(2, 1, figsize=(30,4))
+    figure, axs = plt.subplots(3, 1, figsize=(30,4))
 
     plt.subplots_adjust(hspace=1)
 
@@ -198,12 +178,15 @@ def error(x, y, yrec, sigma,b):
     L = 0.5*(1/sigma)*(e[0]**2) + e[1]**2 + e[2]**2 #Lyaponev Function
     axs[1].plot(x,L)
     axs[1].set_title('Lyaponev Function')
+    axs[2].plot(x,e[g])
+    axs[2].set_title('Error of Drive Function')
+
     plt.show()
     return L
 
 
 def run(stepper, nstep, ver, Name, rparam, sound, drive):
-    sample_rate = 50000
+    sample_rate = 100000
 
     if drive == 'x':
         g = 0
@@ -211,15 +194,16 @@ def run(stepper, nstep, ver, Name, rparam, sound, drive):
         g = 1
     if ver ==2:
         time = (nstep+1)/sample_rate #NEEDS TO BE DIVISABLE
-        
         fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = 1, var = g, time = time)
         x,y,it = fINT(fRHS,fORD,fBVP,x0,y0,x1,nstep,s=10,b=8/3,r=rparam)
 
         set_step()
 
         fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = ver, var = g, time = time)
+
         x,yrec,it2 = fINT(fRHS,fORD,fBVP,x0,y0,x1,nstep,s=10,b=8/3,r=rparam, driving = y[g])
-        L = error(x,y,yrec,10,8/3)
+
+        L = error(x,y,yrec,10,8/3,g)
         check(x,y,it, rparam,Name,  receiving = yrec)
     elif ver == 1:
         time = 100
@@ -228,32 +212,39 @@ def run(stepper, nstep, ver, Name, rparam, sound, drive):
         check(x,y,it, rparam,Name)
     elif ver == 3:
         if sound == 'record':
-            mode = 2
+            mode = 2 #Record
             time = (nstep+1)/sample_rate #NEEDS TO BE DIVISABLE
             print(f'Message Time: {time}')
 
-
+            #Initialization of sender generages chaotic signal
             fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = 1, var = g, time = time)
             x,y,it = fINT(fRHS,fORD,fBVP,x0,y0,x1,nstep,s=10,b=8/3,r=rparam)
 
-
+            #Obtains signal where s[0] = time and s[1] = your voice
             s = ad.Setter(Name, mode,T = time, rate = sample_rate)
        
+            #signal = np.zeros(s[0].size)+1000
+            signal = s[1]
+            chaos = y[g]
+
+
             frac = 0.001
+            #Normalization and reduction of signal to chaotic amplitude
             mag = frac*max(abs(y[g]))/(max(abs(s[1])))
-            mask = s[1]*mag + y[g]  
+            #mag = 1
+            #Mask signal
+            mask = signal*mag + chaos  
             nstep = len(s[1])-1
             
-            #mag = max(abs(y[1]))/(frac*max(abs(y[0])))
-
+            #The Plots of signal vs. time, chaos vs. time, mask vs. time
             figure, axs = plt.subplots(3, 1, figsize=(30,4))
             plt.subplots_adjust(hspace=1)
-            axs[0].plot(s[0], s[1]) 
+            axs[0].plot(s[0], signal) 
             axs[0].set_xlim(s[0][0], s[0][-1])
             axs[0].set_xlabel('time (s)')
             axs[0].set_ylabel('amplitude')
             axs[0].set_title('Chaotic x')
-            axs[1].plot(s[0], y[g]) 
+            axs[1].plot(s[0], chaos) 
             axs[1].set_xlim(s[0][0], s[0][-1])
             axs[1].set_xlabel('time (s)')
             axs[1].set_ylabel('amplitude')
@@ -264,55 +255,71 @@ def run(stepper, nstep, ver, Name, rparam, sound, drive):
             axs[2].set_ylabel('amplitude')
             axs[2].set_title('Chaos + signal')
             #plt.show()
-            print("masked signal")
-            ad.play(mask*500, Name, 'masked', sample_rate, time)
-            #Fourier Spectrium
-            figure, axes = plt.subplots(2, 1, figsize=(30,4))
 
+            #Plays Masked Signal
+            print("masked signal")
+            try:
+                ad.play(mask*500, Name, 'masked', sample_rate, time)
+            except:
+                pass
+
+
+            #Fourier Spectrum Plots
+            figure, axes = plt.subplots(2, 1, figsize=(30,4))
             plt.subplots_adjust(hspace=1)
 
-
-
-            frequencies, fourierTransform = fft(s[1]/max(s[1]), time, sample_rate) #Signal FFT
-
+            frequencies, fourierTransform = fft(signal/max(signal), time, sample_rate) #Signal FFT
+            #First subplot deals with graphing signal and chaotic fft
             axes[0].plot(frequencies, abs(fourierTransform), label = 'Signal')
-            frequencies, fourierTransform = fft(y[0]/max(y[0]), time, sample_rate) #Chaotic FFT
-            axes[0].plot(frequencies, abs(fourierTransform), label = 'Chaos')
-
-
-                       
+            frequencies, fourierTransform = fft(chaos/max(chaos), time, sample_rate) #Chaotic FFT
+            axes[0].plot(frequencies, abs(fourierTransform), label = 'Chaos')                       
             axes[0].set_xlabel('Frequency')
             axes[0].set_ylabel('Amplitude')
             axes[0].set_title('Signal')
 
+            #2nd subplot graphs mask fft
             frequencies, fourierTransform = fft(mask, time, sample_rate) #Signal + Chaotic FFT
-
-
             axes[1].plot(frequencies, abs(fourierTransform))
             axes[1].set_xlabel('Frequency')
             axes[1].set_ylabel('Amplitude')
             axes[1].set_title('Sig+Chaos')
-            plt.legend
+            plt.legend()
             plt.show()
 
+            #This up the index of the drive signal that is required for the ode
             set_step()
 
+            #ODE sync with the receiver system
             fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = 2, var = g, time = time)
             x,yrec,it2 = fINT(fRHS,fORD,fBVP,x0,y0,x1,nstep,s=10,b=8/3,r=rparam, driving = mask)
-        elif sound == 'binary':
-            mode = 1
-            time = (nstep+1)/sample_rate
-            cycpersec = 2 #Cycles/second
-            s = ad.Setter(Name, mode,T = cycpersec,time = time, A = 30000,rate = sample_rate)
-            time = 100
-            nstep = len(s[1])-1
 
+        elif sound == 'binary':
+            mode = 1 #Binary
+            time = (nstep+1)/sample_rate
+            cycpersec = 4 #Cycles/second
+
+
+            #Sender system 
             fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = 1, var = g, time = time)
             x,y,it = fINT(fRHS,fORD,fBVP,x0,y0,x1,nstep,s=10,b=8/3,r=rparam)
 
-            frac = 0.1
+            #Generates binary signal according to frequency and sample rate
+            s = ad.Setter(Name, mode,T = cycpersec,time = time, A = 30000,rate = sample_rate)
+
+            frac = 0.1*(100000/nstep)
+
+            signal = s[1]
+            chaos = y[g]
+            
+            
+            #Sets up the normalization of the signal respective to the chaos
             mag = frac*max(abs(y[g]))/(max(abs(s[1])))
-            mask = s[1]*mag + y[g]
+            #Mask
+            mask = signal*mag + chaos
+            print(max(signal*mag) )
+            nstep = len(s[1])-1
+
+            #Plots Singla, chaos and mask
             figure, axs = plt.subplots(3, 1, figsize=(30,4))
             plt.subplots_adjust(hspace=1)
             axs[0].plot(s[0],s[1])
@@ -324,23 +331,32 @@ def run(stepper, nstep, ver, Name, rparam, sound, drive):
             axs[2].plot(s[0],mask)
             axs[2].set_title("Mask")
             axs[2].set_xlabel("time")
-            plt.show()
-            fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = 2, var = g, time = time)
+            plt.draw()
+            #This up the index of the drive signal that is required for the ode
             set_step()
 
+            #ODE sync with the receiver system
+            fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = 2, var = g, time = time)
             x,yrec,it2 = fINT(fRHS,fORD,fBVP,x0,y0,x1,nstep,s=10,b=8/3,r=rparam, driving = mask)
+
+
         
+        #Obtains Recoverd and graphs
         recovered = (mask-yrec[g])/mag
         plt.figure(figsize=(30, 4))
         plt.plot(s[0], recovered)
-        plt.show()
-
+        plt.title("Recovered Signal")
+        plt.draw()
+        
+        #Plays Recovered
         if mode == 2:
-            if abs(max(recovered))>32767:
-                recovered = recovered*32767/(max(recovered+10))
+            
 
             print("Recovered Signal")
-            ad.play(recovered, Name, 'recovered', sample_rate, time )
+            try:
+                ad.play(recovered, Name, 'recovered', sample_rate, time )
+            except:
+                pass
         
 
     plt.show()
@@ -360,13 +376,20 @@ def fft(filename, time, sample_rate):
 
 if __name__ == "__main__": 
 
-    #Default Run : python Lorenz.py rk4 100000 3 Practice 30 record y
+    #Default Run : python Lorenz.py rk4 100000 3 Practice 30 record x
     '''
     Work: what values of r best synchronize the message
           Is there a single value we can use to characterize synchronizaiton?
           How does step size effect the convergence of the synchronization?
           Is there any parallel work or anything else we can use to speed up the integrator?
+          Search with a cost function = integral of Lyaponov
     '''
+    '''
+    Time Dependance of Lyaponov Function and level of Synchronization
+    Constant function failed syncrhonization why?
+    Low levels marked similar to drive lyaponov difference but higher inten relationship lost 
+    '''
+
     parser = argparse.ArgumentParser(formatter_class=RawTextHelpFormatter)
     parser.add_argument("stepper",type=str,default='euler',
                         help="stepping function:\n"
@@ -414,8 +437,9 @@ if __name__ == "__main__":
     if ver == 3:
        # run(stepper, nstep, ver, Name, rparam, sound, drive)
         
-        p2 = mp.Process(target=run, args=(stepper, nstep, ver, Name, rparam, sound, drive))
-        p1 = mp.Process(target=run, args=(stepper, nstep, 2, Name, rparam, 'NA', drive))
+
+        p2 = mp.Process(target=run, args=(stepper, nstep, ver, Name, rparam, sound, drive)) #Process for pertubration
+        p1 = mp.Process(target=run, args=(stepper, nstep, 2, Name, rparam, 'NA', drive)) #Process for synchronization check
         p1.start()
         p2.start()
     else: 
