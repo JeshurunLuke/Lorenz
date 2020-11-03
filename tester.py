@@ -7,18 +7,34 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import odeint
 import audio as ad 
+import odestep as step
 
+'''
+argument: synchronization and masking depends on dt. You need a reasonable dt such that each iteration from the next has a noticable difference in the value of the 
+evaluated function. Therefore decreasing dt to much will result in a slow "continous" function that fails to properly mask as efficently as a more "wild" function.
+Nonetheless, this comes at a cost, because of this larger dt convergence and syncronization is not as efficent.
 
+Conclusion: You can't win with both an amazingly masked function and an extremely pure recovered signal
+Ways to optimize: Because of this conclusion our nstep/tlen has to be a constant, so the best plan of action is to optimize the magnitude of the hidden signal, such that 
+the level of synchronization (for example with 0 signal and nste/tlen ratio given here syncrhonizes to (+/-0.005)), is a small fraction of the hidden signal.
+
+Sample Rate max it because chaotic signal has to best frequency?
+'''
 n = 1000000
 tlen = 1000
-rho = 40.0
-timer = 5
 
+
+rho = 40.0
+
+timer = 5
+times = 5
 
 binary = False
 
+
 Name  = 'Truest'
 
+tnew = np.linspace(0, tlen, n)
 
 def param(x,**kwargs):
     sigma = 10.0
@@ -29,11 +45,29 @@ def param(x,**kwargs):
 def lorenz(q, t, sigma, rho, beta):
     x, y, z = q
     return [sigma*(y - x), x*(rho - z) - y, x*y - beta*z]
+global it
+it = 0
+def lorenznew(q, t, sigma, rho, beta, driving,dt):
+    x, y, z = q
+    it +=1
+    print(it)
+    d = driving[it]
+    return [sigma*(y - x), d*(rho - z) - y, d*y - beta*z]
+def get_step():
+    global steps
+    steps +=1
+    return steps
+
+def set_step():
+    global steps
+    steps = -1
 
 def lorenzr(x,y,dx,**kwargs):
     dydx    = np.zeros(3)
-    sigma, b, r = param(x,**kwargs)
     d = float(kwargs['d'])
+    sigma = 10.0
+    b = 8/3
+    r = rho
 
     # ????? from here
     dydx[0] = sigma*(y[1]-y[0])
@@ -44,17 +78,22 @@ def lorenzr(x,y,dx,**kwargs):
 
 def solve(ic):
     t = np.linspace(0, tlen, n)
+    print(t)
     sigma = 10.0
     beta = 8/3
     sol = odeint(lorenz, ic, t, args=(sigma, rho, beta), rtol=1e-10, atol=1e-12)
     return sol
 
 def solved(ic,driving):
+    t = np.linspace(0, tlen, n)
+
     sigma = 10.0
     rho = 28.0
     beta = 8/3
+    dt = t[1]-t[0]
     set_step()
-    sol = odeint(lorenzr, ic, t, args=(sigma, rho, beta,driving), rtol=1e-10, atol=1e-12)
+
+    sol = odeint(lorenznew, ic, t, args=(sigma, rho, beta,driving,dt), rtol=1e-10, atol=1e-12)
     return sol
 
 def rk4(fRHS,x0,y0,dx,**kwargs):
@@ -87,8 +126,7 @@ def ode_ivp(fRHS,fORD,fBVP,x0,y0,x1,nstep, **kwargs):
             y[:,k],it[k] = fORD(fRHS,x[k-1],y[:,k-1],dx,d = currentx)
     else:
         for k in range(1,nstep+1):        
-            currentx = driving[k]
-            y[:,k],it[k] = fORD(fRHS,x[k-1],y[:,k-1],dx,d = currentx)
+            y[:,k],it[k] = fORD(fRHS,x[k-1],y[:,k-1],dx)
     return x,y,it
 
 
@@ -97,7 +135,7 @@ def ode_init():
 
     fBVP = 0 # default is IVP, but see below.
     fINT = ode_ivp
-    fORD = rk4
+    fORD = step.rk45
     fRHS = lorenzr
     return fINT,fORD,fRHS,fBVP
 
@@ -118,35 +156,51 @@ if __name__ == "__main__":
     tmp = tend - tstart
     print(" %8.3f seconds" % tmp)
 
-    n = 0 
+    c = 0 
     for sol1 in mp_solutions:
         sample_rate = sol1[:,0].size/timer
+        print(sample_rate)
         cycpersec = 4 #Cycles/second
 
 
         #Generates binary signal according to frequency and sample rate
         if binary:
             mode = 1
-
+            
             s = ad.Setter(Name, mode,T = cycpersec,time = timer, A = 30000,rate = sample_rate)
+            sig = s[1]
         else:
             mode = 2
-            s = ad.Setter(Name, mode,T = timer, rate = sample_rate)
-            plt.figure(figsize=(30, 4))
-            plt.plot(t, s[1])
-            plt.title("Initial Signal")
-            plt.draw()
+            s = ad.Setter(Name, mode,T = times, rate = sample_rate)
+            sig = np.zeros(sol1[:,0].size)
+            sig[0:s[1].size] = s[1]
 
-        signal = s[1] #np.zeros(sol1[:,0].size)
+            plt.figure(figsize=(30, 4))
+            plt.plot(t[0:s[1].size], sig[0:s[1].size])
+            plt.title("Initial Signal")
+            plt.show()
+
+        signal = sig #np.zeros(sol1[:,0].size)
         driving = signal/max(signal) + sol1[:,0]
 
 
 
-        print(driving)
+        tstart = time.time()
 
 
         fINT,fORD,fRHS,fBVP = ode_init()
-        x,y,it = fINT(fRHS,fORD,fBVP,t[0],ics[n],t[t.size-1],signal.size-1, driving = driving)        
+        x,y,it = fINT(fRHS,fORD,fBVP,t[0],ics[c],t[t.size-1],signal.size-1, driving = driving)  
+
+        tend = time.time()
+        print(f"It took approximatly {tend-tstart} seconds")
+        '''
+        sol2 = solved(ics[c],driving)
+        plt.plot(x, sol2[:,0])
+        plt.show()
+        plt.plot(x, y[0])
+        plt.title("L")
+        plt.show()
+        '''
         recovered = (driving - y[0])*max(signal)
         if binary == False:
             print("masked signal")
@@ -164,11 +218,11 @@ if __name__ == "__main__":
 
 
         plt.figure(figsize=(30, 4))
-        plt.plot(t, recovered)
+        plt.plot(t[0:s[1].size], recovered[0:s[1].size])
         plt.title("Recovered Signal")
         plt.show()
 
-        n+=1
+        c+=1
         
 
 '''
