@@ -6,6 +6,8 @@ import multiprocessing as mp
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import odeint
+from scipy.interpolate import interp1d
+
 import audio as ad 
 import odestep as step
 
@@ -20,8 +22,8 @@ the level of synchronization (for example with 0 signal and nste/tlen ratio give
 
 Sample Rate max it because chaotic signal has to best frequency?
 '''
-n = 1000000
-tlen = 1000
+n = 100000
+tlen = 100
 
 
 rho = 40.0
@@ -29,8 +31,8 @@ rho = 40.0
 timer = 5
 times = 5
 
-binary = False
-
+binary = True
+speed = True
 
 Name  = 'Truest'
 
@@ -45,22 +47,12 @@ def param(x,**kwargs):
 def lorenz(q, t, sigma, rho, beta):
     x, y, z = q
     return [sigma*(y - x), x*(rho - z) - y, x*y - beta*z]
-global it
-it = 0
-def lorenznew(q, t, sigma, rho, beta, driving,dt):
-    x, y, z = q
-    it +=1
-    print(it)
-    d = driving[it]
-    return [sigma*(y - x), d*(rho - z) - y, d*y - beta*z]
-def get_step():
-    global steps
-    steps +=1
-    return steps
 
-def set_step():
-    global steps
-    steps = -1
+def lorenznew(q, t, sigma, rho, beta, driving,finterp):
+    x, y, z = q
+    d = finterp(t)
+    return [sigma*(y - x), d*(rho - z) - y, d*y - beta*z]
+
 
 def lorenzr(x,y,dx,**kwargs):
     dydx    = np.zeros(3)
@@ -81,6 +73,7 @@ def solve(ic):
     print(t)
     sigma = 10.0
     beta = 8/3
+
     sol = odeint(lorenz, ic, t, args=(sigma, rho, beta), rtol=1e-10, atol=1e-12)
     return sol
 
@@ -88,23 +81,13 @@ def solved(ic,driving):
     t = np.linspace(0, tlen, n)
 
     sigma = 10.0
-    rho = 28.0
     beta = 8/3
-    dt = t[1]-t[0]
-    set_step()
 
-    sol = odeint(lorenznew, ic, t, args=(sigma, rho, beta,driving,dt), rtol=1e-10, atol=1e-12)
+    finterp = interp1d(t,driving,fill_value='extrapolate')
+    sol = odeint(lorenznew, ic, t, args=(sigma, rho, beta,driving,finterp), rtol=1e-6, atol=1e-6)
     return sol
 
-def rk4(fRHS,x0,y0,dx,**kwargs):
-    #???????? from here
-    k1 = fRHS(x0,y0,dx,**kwargs)*dx
-    k2 = fRHS(x0+dx/2,y0+k1/2,dx,**kwargs)*dx
-    k3 = fRHS(x0+dx/2,y0+k2/2,dx,**kwargs)*dx
-    k4 = fRHS(x0+dx,y0+k3,dx,**kwargs)*dx
-    y = y0 + (k1+k4)/6 + (k2+k3)/3
-    #???????? to here
-    return y,1
+
 
 def ode_ivp(fRHS,fORD,fBVP,x0,y0,x1,nstep, **kwargs):
     driv = False
@@ -122,7 +105,7 @@ def ode_ivp(fRHS,fORD,fBVP,x0,y0,x1,nstep, **kwargs):
     if driv:
         for k in range(1,nstep+1):
         
-            currentx = driving[k]
+            currentx = driving[k-1]
             y[:,k],it[k] = fORD(fRHS,x[k-1],y[:,k-1],dx,d = currentx)
     else:
         for k in range(1,nstep+1):        
@@ -180,28 +163,33 @@ if __name__ == "__main__":
             plt.title("Initial Signal")
             plt.show()
 
-        signal = sig #np.zeros(sol1[:,0].size)
+        signal = sig
         driving = signal/max(signal) + sol1[:,0]
 
 
+        if speed == False:
+            tstart = time.time()
 
-        tstart = time.time()
+            fINT,fORD,fRHS,fBVP = ode_init()
+            x,y,it = fINT(fRHS,fORD,fBVP,t[0],ics[c],t[t.size-1],signal.size-1, driving = driving)  
+
+            tend = time.time()
+            print(f"It took approximatly {tend-tstart} seconds")
+        else:
+            tstart = time.time()
+            sol2 = solved(ics[c],driving)
+            y = np.transpose(sol2)
+            tend = time.time()
+            print(f"It took approximatly {tend-tstart} seconds")
 
 
-        fINT,fORD,fRHS,fBVP = ode_init()
-        x,y,it = fINT(fRHS,fORD,fBVP,t[0],ics[c],t[t.size-1],signal.size-1, driving = driving)  
 
-        tend = time.time()
-        print(f"It took approximatly {tend-tstart} seconds")
-        '''
-        sol2 = solved(ics[c],driving)
-        plt.plot(x, sol2[:,0])
-        plt.show()
-        plt.plot(x, y[0])
-        plt.title("L")
-        plt.show()
-        '''
         recovered = (driving - y[0])*max(signal)
+        plt.figure(figsize=(30, 4))
+        plt.plot(t[0:s[1].size], recovered[0:s[1].size])
+        plt.title("Recovered Signal")
+        plt.show()
+
         if binary == False:
             print("masked signal")
             try:
@@ -217,10 +205,6 @@ if __name__ == "__main__":
                 pass
 
 
-        plt.figure(figsize=(30, 4))
-        plt.plot(t[0:s[1].size], recovered[0:s[1].size])
-        plt.title("Recovered Signal")
-        plt.show()
 
         c+=1
         
