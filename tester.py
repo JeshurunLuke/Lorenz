@@ -23,7 +23,7 @@ the level of synchronization (for example with 0 signal and nste/tlen ratio give
 Sample Rate max it because chaotic signal has to best frequency?
 '''
 n = 100000
-tlen = 100
+tlen = 10
 
 
 rho = 40.0

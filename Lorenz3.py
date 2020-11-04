@@ -293,8 +293,9 @@ if __name__ == "__main__":
     times = args.time
 
     n = 100000 #Needs to be atleast above 100,000 for decent recovery
-    tlen = 100 #Need atleast above 1000 for decent masking
-    timer = n/20000 #Selects t such that sample rate is maxed to 200,000
+    tlen = 1000 #Need atleast above 100 for decent masking
+    timer = n/2000 #Selects t such that sample rate is maxed to 200,000
+    
     if times>timer:
         raise NameError(f'Choose a time less than {timer} seconds')
     if sound == 'record':
