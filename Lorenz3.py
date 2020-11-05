@@ -36,7 +36,6 @@ beta = 8/3
 
 def lorenz(q, t, sigma, rho, beta):
     x, y, z = q
-
     return [sigma*(y - x), x*(float(rho) - z) - y, x*y - beta*z]
 
 def lorenznew(q, t, sigma, rho, beta, driving,finterp):
@@ -44,10 +43,22 @@ def lorenznew(q, t, sigma, rho, beta, driving,finterp):
     d = finterp(t)
     return [sigma*(y - x), d*(float(rho) - z) - y, d*y - beta*z]
 
+def lorenzi(x,y,dx,**kwargs):
+    dydx    = np.zeros(3)
+    r = float(kwargs['rho'])
+    # ????? from here
+    dydx[0] = sigma*(y[1]-y[0])
+    dydx[1] = r*y[0]-y[1]-y[0]*y[2]
+    dydx[2] = y[0]*y[1]-beta*y[2]
+    # ????? to here
+    return dydx
 
 def lorenzr(x,y,dx,**kwargs):
     dydx    = np.zeros(3)
-    d = float(kwargs['d'])
+ 
+    d = kwargs['d']
+    smooth = kwargs['smooth']
+    d = smooth(x)
     r = float(kwargs['rho'])
 
 
@@ -60,7 +71,7 @@ def lorenzr(x,y,dx,**kwargs):
     return dydx
 
 def solve(ic,rho,t):
-    sol = odeint(lorenz, ic, t, args=(sigma, rho, beta), rtol=1e-10, atol=1e-12)
+    sol = odeint(lorenz, ic, t, args=(sigma, rho, beta), rtol=1e-6, atol=1e-6)
     return sol
 
 def solved(ic,rho,driving,t):
@@ -70,8 +81,7 @@ def solved(ic,rho,driving,t):
 
 
 
-def ode_ivp(fRHS,fORD,fBVP,x0,y0,x1,nstep, **kwargs):
-    driv = False
+def ode_ivp(fRHS,fORD,fBVP,x0,y0,x1,nstep, driv, **kwargs):
     for key in kwargs:
         if (key=='driving'):
             driv = True
@@ -86,17 +96,16 @@ def ode_ivp(fRHS,fORD,fBVP,x0,y0,x1,nstep, **kwargs):
     it      = np.zeros(nstep+1)
     if driv:
         for k in range(1,nstep+1):
-        
-            currentx = driving[k-1]
-            y[:,k],it[k] = fORD(fRHS,x[k-1],y[:,k-1],dx,d = currentx, rho = r)
+            finterp = interp1d(x,driving,fill_value='extrapolate')
+            y[:,k],it[k] = fORD(fRHS,x[k-1],y[:,k-1],dx,d = driving, rho = r, smooth =finterp)
     else:
         for k in range(1,nstep+1):        
-            y[:,k],it[k] = fORD(fRHS,x[k-1],y[:,k-1],dx)
+            y[:,k],it[k] = fORD(fRHS,x[k-1],y[:,k-1],dx, rho = r)
     return x,y,it
 
 
 
-def ode_init(stepper):
+def ode_init(stepper, driver):
     if (stepper == 'rk4'):
         fORD = step.rk4
     elif (stepper == 'rk45'):
@@ -105,7 +114,10 @@ def ode_init(stepper):
         raise Exception('[ode_init]: invalid stepper value: %s' % (stepper))
     fBVP = 0 # default is IVP, but see below.
     fINT = ode_ivp
-    fRHS = lorenzr
+    if driver:
+        fRHS = lorenzr
+    else:
+        fRHS = lorenzi
     return fINT,fORD,fRHS,fBVP
 
 
@@ -176,8 +188,8 @@ def Perturbed(sol1, rho, ic, binary,t, stepper,timer,speed,Name,times):
     if speed == False:
         tstart = time.time()
 
-        fINT,fORD,fRHS,fBVP = ode_init(stepper)
-        x,y,it = fINT(fRHS,fORD,fBVP,t[0],ic,t[t.size-1],signal.size-1, driving = driving, rho = rho)  
+        fINT,fORD,fRHS,fBVP = ode_init(stepper, True)
+        x,y,it = fINT(fRHS,fORD,fBVP,t[0],ic,t[t.size-1],signal.size-1, True, driving = driving, rho = rho)  
 
         tend = time.time()
         print(f"It took approximatly {tend-tstart} seconds")
@@ -240,8 +252,8 @@ def Unperturbed(sol1,rho, ic,t, stepper,timer,speed):
     if speed == False:
         tstart = time.time()
 
-        fINT,fORD,fRHS,fBVP = ode_init(stepper)
-        x,yrec,it = fINT(fRHS,fORD,fBVP,t[0],ic,t[t.size-1],signal.size-1, driving = driving, rho = rho)  
+        fINT,fORD,fRHS,fBVP = ode_init(stepper, True)
+        x,yrec,it = fINT(fRHS,fORD,fBVP,t[0],ic,t[t.size-1],signal.size-1,True, driving = driving, rho = rho)  
 
         tend = time.time()
         print(f"It took approximatly {tend-tstart} seconds")
@@ -292,10 +304,19 @@ if __name__ == "__main__":
     sound = args.sound
     times = args.time
 
+
+    '''
+    3 varables that need attention
+    '''
     n = 100000 #Needs to be atleast above 100,000 for decent recovery
-    tlen = 1000 #Need atleast above 100 for decent masking
-    timer = n/2000 #Selects t such that sample rate is maxed to 200,000
-    
+    tlen = 1000 #Need atleast above 100 for decent masking and a certain ratio between n/tlen has to be maintained for convergence dt<0
+    #But if you try tlen = 10 with binary it breaks horribly for r>24.8 why?
+
+    sample_rate = 20000 #How does sample rate influence?
+
+
+    timer = n/sample_rate #Selects t such that sample rate is maxed to 200,000
+
     if times>timer:
         raise NameError(f'Choose a time less than {timer} seconds')
     if sound == 'record':
@@ -316,9 +337,12 @@ if __name__ == "__main__":
 
 
     tstart = time.time()
-
-    sol1 = solve(ics,rho,t)
-
+    if speed:
+        sol1 = solve(ics,rho,t)
+    else:
+        fINT,fORD,fRHS,fBVP = ode_init(stepper,False)
+        x,y,it = fINT(fRHS,fORD,fBVP,t[0],ics,t[t.size-1],n-1, False, rho = rho)  
+        sol1 = np.transpose(y)
     tend = time.time()
     tmp = tend - tstart
     print(f"Initialization took approximatly {tend-tstart} seconds")
