@@ -1,227 +1,84 @@
-from __future__ import division, print_function
-
-import sys
-import time
-import multiprocessing as mp
 import numpy as np
-import matplotlib.pyplot as plt
-from scipy.integrate import odeint
-from scipy.interpolate import interp1d
+from scipy import integrate
 
-import audio as ad 
-import odestep as step
+from matplotlib import pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib.colors import cnames
+from matplotlib import animation
 
-'''
-argument: synchronization and masking depends on dt. You need a reasonable dt such that each iteration from the next has a noticable difference in the value of the 
-evaluated function. Therefore decreasing dt to much will result in a slow "continous" function that fails to properly mask as efficently as a more "wild" function.
-Nonetheless, this comes at a cost, because of this larger dt convergence and syncronization is not as efficent.
-
-Conclusion: You can't win with both an amazingly masked function and an extremely pure recovered signal
-Ways to optimize: Because of this conclusion our nstep/tlen has to be a constant, so the best plan of action is to optimize the magnitude of the hidden signal, such that 
-the level of synchronization (for example with 0 signal and nste/tlen ratio given here syncrhonizes to (+/-0.005)), is a small fraction of the hidden signal.
-
-Sample Rate max it because chaotic signal has to best frequency?
-'''
-n = 100000
-tlen = 10
+N_trajectories = 20
 
 
-rho = 40.0
+def lorentz_deriv(params, t0, sigma=10., beta=8./3, rho=28.0):
+    """Compute the time-derivative of a Lorentz system."""
+    x, y, z = params
 
-timer = 5
-times = 5
-
-binary = True
-speed = True
-
-Name  = 'Truest'
-
-tnew = np.linspace(0, tlen, n)
-
-def param(x,**kwargs):
-    sigma = 10.0
-    beta = 8/3
-
-    # ????? to here
-    return sigma,beta,rho
-def lorenz(q, t, sigma, rho, beta):
-    x, y, z = q
-    return [sigma*(y - x), x*(rho - z) - y, x*y - beta*z]
-
-def lorenznew(q, t, sigma, rho, beta, driving,finterp):
-    x, y, z = q
-    d = finterp(t)
-    return [sigma*(y - x), d*(rho - z) - y, d*y - beta*z]
+    return [sigma * (y - x), x * (rho - z) - y, x * y - beta * z]
 
 
-def lorenzr(x,y,dx,**kwargs):
-    dydx    = np.zeros(3)
-    d = float(kwargs['d'])
-    sigma = 10.0
-    b = 8/3
-    r = rho
+# Choose random starting points, uniformly distributed from -15 to 15
+np.random.seed(1)
+x0 = -15 + 30 * np.random.random((N_trajectories, 3))
 
-    # ????? from here
-    dydx[0] = sigma*(y[1]-y[0])
-    dydx[1] = r*d-y[1]-d*y[2]
-    dydx[2] = d*y[1]-b*y[2]
-    # ????? to here
-    return dydx
+# Solve for the trajectories
+t = np.linspace(0, 4, 1000)
+x_t = np.asarray([integrate.odeint(lorentz_deriv, x0i, t)
+                  for x0i in x0])
+print(x_t.shape)
+# Set up figure & 3D axis for animation
+fig = plt.figure()
+ax = fig.add_axes([0, 0, 1, 1], projection='3d')
+ax.axis('off')
 
-def solve(ic):
-    t = np.linspace(0, tlen, n)
-    print(t)
-    sigma = 10.0
-    beta = 8/3
+# choose a different color for each trajectory
+colors = plt.cm.jet(np.linspace(0, 1, N_trajectories))
 
-    sol = odeint(lorenz, ic, t, args=(sigma, rho, beta), rtol=1e-10, atol=1e-12)
-    return sol
+# set up lines and points
+lines = sum([ax.plot([], [], [], '-', c=c)
+             for c in colors], [])
+pts = sum([ax.plot([], [], [], 'o', c=c)
+           for c in colors], [])
 
-def solved(ic,driving):
-    t = np.linspace(0, tlen, n)
+# prepare the axes limits
+ax.set_xlim((-25, 25))
+ax.set_ylim((-35, 35))
+ax.set_zlim((5, 55))
 
-    sigma = 10.0
-    beta = 8/3
+# set point-of-view: specified by (altitude degrees, azimuth degrees)
+ax.view_init(30, 0)
 
-    finterp = interp1d(t,driving,fill_value='extrapolate')
-    sol = odeint(lorenznew, ic, t, args=(sigma, rho, beta,driving,finterp), rtol=1e-6, atol=1e-6)
-    return sol
+# initialization function: plot the background of each frame
+def init():
+    for line, pt in zip(lines, pts):
+        line.set_data([], [])
+        line.set_3d_properties([])
 
+        pt.set_data([], [])
+        pt.set_3d_properties([])
+    return lines + pts
 
+# animation function.  This will be called sequentially with the frame number
+def animate(i):
+    # we'll step two time-steps per frame.  This leads to nice results.
+    i = (2 * i) % x_t.shape[1]
 
-def ode_ivp(fRHS,fORD,fBVP,x0,y0,x1,nstep, **kwargs):
-    driv = False
-    for key in kwargs:
-        if (key=='driving'):
-            driv = True
-            driving = kwargs['driving']                      
+    for line, pt, xi in zip(lines, pts, x_t):
+        x, y, z = xi[:i].T
+        line.set_data(x, y)
+        line.set_3d_properties(z)
 
-    nvar    = y0.size                      # number of ODEs
-    x       = np.linspace(x0,x1,nstep+1)   # generates equal-distant support points
-    y       = np.zeros((nvar,nstep+1))     # result array 
-    y[:,0]  = y0                           # set initial condition
-    dx      = x[1]-x[0]                    # step size
-    it      = np.zeros(nstep+1)
-    if driv:
-        for k in range(1,nstep+1):
-        
-            currentx = driving[k-1]
-            y[:,k],it[k] = fORD(fRHS,x[k-1],y[:,k-1],dx,d = currentx)
-    else:
-        for k in range(1,nstep+1):        
-            y[:,k],it[k] = fORD(fRHS,x[k-1],y[:,k-1],dx)
-    return x,y,it
+        pt.set_data(x[-1:], y[-1:])
+        pt.set_3d_properties(z[-1:])
 
+    ax.view_init(30, 0.3 * i)
+    fig.canvas.draw()
+    return lines + pts
 
+# instantiate the animator.
+anim = animation.FuncAnimation(fig, animate, init_func=init,
+                               frames=500, interval=30, blit=True)
 
-def ode_init():
+# Save as mp4. This requires mplayer or ffmpeg to be installed
+#anim.save('lorentz_attractor.mp4', fps=15, extra_args=['-vcodec', 'libx264'])
 
-    fBVP = 0 # default is IVP, but see below.
-    fINT = ode_ivp
-    fORD = step.rk45
-    fRHS = lorenzr
-    return fINT,fORD,fRHS,fBVP
-
-
-
-if __name__ == "__main__":
-    t = np.linspace(0, tlen, n)
-
-    ics = np.random.randn(1, 3)
-    print(ics)
-
-    print("multiprocessing:", end='')
-    tstart = time.time()
-    num_processes = 5
-    p = mp.Pool(num_processes)
-    mp_solutions = p.map(solve, ics)
-    tend = time.time()
-    tmp = tend - tstart
-    print(" %8.3f seconds" % tmp)
-
-    c = 0 
-    for sol1 in mp_solutions:
-        sample_rate = sol1[:,0].size/timer
-        print(sample_rate)
-        cycpersec = 4 #Cycles/second
-
-
-        #Generates binary signal according to frequency and sample rate
-        if binary:
-            mode = 1
-            
-            s = ad.Setter(Name, mode,T = cycpersec,time = timer, A = 30000,rate = sample_rate)
-            sig = s[1]
-        else:
-            mode = 2
-            s = ad.Setter(Name, mode,T = times, rate = sample_rate)
-            sig = np.zeros(sol1[:,0].size)
-            sig[0:s[1].size] = s[1]
-
-            plt.figure(figsize=(30, 4))
-            plt.plot(t[0:s[1].size], sig[0:s[1].size])
-            plt.title("Initial Signal")
-            plt.show()
-
-        signal = sig
-        driving = signal/max(signal) + sol1[:,0]
-
-
-        if speed == False:
-            tstart = time.time()
-
-            fINT,fORD,fRHS,fBVP = ode_init()
-            x,y,it = fINT(fRHS,fORD,fBVP,t[0],ics[c],t[t.size-1],signal.size-1, driving = driving)  
-
-            tend = time.time()
-            print(f"It took approximatly {tend-tstart} seconds")
-        else:
-            tstart = time.time()
-            sol2 = solved(ics[c],driving)
-            y = np.transpose(sol2)
-            tend = time.time()
-            print(f"It took approximatly {tend-tstart} seconds")
-
-
-
-        recovered = (driving - y[0])*max(signal)
-        plt.figure(figsize=(30, 4))
-        plt.plot(t[0:s[1].size], recovered[0:s[1].size])
-        plt.title("Recovered Signal")
-        plt.show()
-
-        if binary == False:
-            print("masked signal")
-            try:
-                ad.play(driving*500, Name, 'masked', sample_rate, time)
-            except:
-                print('Signal too strong')
-                pass
-            print("recovered signal")
-            try:
-                ad.play(recovered, Name, 'recovered', sample_rate, time)
-            except:
-                print('Signal too strong')
-                pass
-
-
-
-        c+=1
-        
-
-'''
-    print("serial:         ", end='')
-    sys.stdout.flush()
-    tstart = time.time()
-    serial_solutions = [solve(ic) for ic in ics]
-    tend = time.time()
-    tserial = tend - tstart
-    print(" %8.3f seconds" % tserial)
-
-    print("num_processes = %i, speedup = %.2f" % (num_processes, tserial/tmp))
-
-    check = [(sol1 == sol2).all()
-             for sol1, sol2 in zip(serial_solutions, mp_solutions)]
-    if not all(check):
-        print("There was at least one discrepancy in the solutions.")
-'''
+plt.show()

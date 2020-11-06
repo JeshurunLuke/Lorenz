@@ -131,7 +131,7 @@ def Perturbed(sol1, rho, ic, binary,t, stepper,timer,speed,Name,times):
         mode = 1
         cycpersec = 4 #Cycles/second
 
-        s = ad.Setter(Name, mode,T = cycpersec,time = times, A = 30000,rate = sample_rate)
+        s = ad.Setter(Name, mode,T = cycpersec,time = times, A = 100,rate = sample_rate)
         sig = np.zeros(sol1[:,0].size)
         sig[0:s[1].size] = s[1]
 
@@ -308,12 +308,12 @@ if __name__ == "__main__":
     '''
     3 varables that need attention
     '''
-    n = 100000 #Needs to be atleast above 100,000 for decent recovery
+    n = 1000000 #Needs to be atleast above 100,000 for decent recovery
     tlen = 1000 #Need atleast above 100 for decent masking and a certain ratio between n/tlen has to be maintained for convergence dt<0
     #But if you try tlen = 10 with binary it breaks horribly for r>24.8 why?
-
-    sample_rate = 20000 #How does sample rate influence?
-
+    print(f'N/tlen = {n/tlen}')
+    sample_rate = 200000 #How does sample rate influence?
+    print(n/sample_rate)
 
     timer = n/sample_rate #Selects t such that sample rate is maxed to 200,000
 
