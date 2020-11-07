@@ -112,13 +112,13 @@ def Unperturbed(sol1,rho, ic,t, stepper):
         x,yrec,it = fINT(fRHS,fORD,fBVP,t[0],ic,t[t.size-1],signal.size-1,True, driving = driving, rho = rho)  
 
         tend = time.time()
-        print(f"It took approximatly {tend-tstart} seconds")
+        print(f"{rho}: It took approximatly {tend-tstart} seconds")
     else:
         tstart = time.time()
         sol2 = solved(ic,rho, driving,t)
         yrec = np.transpose(sol2)
         tend = time.time()
-        print(f"It took approximatly {tend-tstart} seconds")
+        print(f"{rho}: It took approximatly {tend-tstart} seconds")
     y = np.transpose(sol1)
     return y,yrec
 
@@ -128,7 +128,7 @@ def Problem2(n,rho):
 
     t = np.linspace(0, tlen, n)
     #ics = np.random.rand(3)
-    ics = np.ones(3)*50
+    ics = np.ones(3)*50.0
     if speed:
         ics = list(ics)
 
@@ -154,6 +154,7 @@ def Problem2(n,rho):
     return n,m, location, error
 
 def Problem3(rho,n,ic):
+    print(f'{rho} with {ic} intialization')
     stepper = 'rk45'
    # ics = [rho**(1/2), rho**(1/2), rho+2]
 
@@ -167,8 +168,10 @@ def Problem3(rho,n,ic):
     else:
         ics = np.array(ic)
         fINT,fORD,fRHS,fBVP = ode_init(stepper,False)
-        x,y,it = fINT(fRHS,fORD,fBVP,t[0],ics,t[t.size-1],n-1, False, rho = rho)  
+        x,y,it = fINT(fRHS,fORD,fBVP,t[0],ics,t[-1],n-1, False, rho = rho)  
         sol1 = np.transpose(y)
+    print(f'{rho} with {ic} Synchronizaiton')
+
     ics += np.ones(3)*10
     y, yrec = Unperturbed(sol1,rho, ics,t, stepper)
     error = np.abs(y[0]-yrec[0])
@@ -176,15 +179,55 @@ def Problem3(rho,n,ic):
     m = np.average(error)
 
     return rho,m, error
+def lyap(x, y, yrec):
+    e = np.zeros((3,y[0].size))
+    e[0] = y[0]-yrec[0]
+    e[1] = y[1]-yrec[1]
+    e[2] = y[2]-yrec[2]
+    
+
+    Ldot = -(e[0]-0.5*e[1])**2-0.75*(e[1]**2)-4*beta*(e[2]**2) #Lyaponev Derivative
+
+    L = 0.5*(1/sigma)*(e[0]**2) + e[1]**2 + e[2]**2 #Lyaponev Function
+ 
+    return L
+def Problem4(rho,n):
+    stepper = 'rk45'
+   # ics = [rho**(1/2), rho**(1/2), rho+2]
+
+    t = np.linspace(0, tlen, n)
+    #ics = np.random.rand(3)
+    ics = np.ones(3)*50.0
+    if speed:
+        ics = list(ics)
+
+        sol1 = solve(ics,rho,t)
+
+    else:
+        ics = np.array(ics)
+        fINT,fORD,fRHS,fBVP = ode_init(stepper,False)
+        x,y,it = fINT(fRHS,fORD,fBVP,t[0],ics,t[t.size-1],n-1, False, rho = rho)  
+        sol1 = np.transpose(y)
+    ics += np.ones(3)*1000
+    y, yrec = Unperturbed(sol1,rho, ics,t, stepper)
+    L = lyap(t, y, yrec)
+    for i in range(0,L.size):
+        if L[i] < 0.5:
+            percent = t[i]/t[-1] *100
+            break
+    return rho,L,percent
+
 if __name__ == "__main__":
-    ndependance = True
+    ndependance = False
+    icrdependance = False
+    rdependance = True
     if ndependance:
         rho = 60
-        n = [100,1000,5000,10000,50000,100000,1000000,5000000]#,9999999]
+        n = [100,1000,5000,10000,50000,100000,1000000,2500000,5000000,9999999]
 
         print("multiprocessing:", end='')
         tstart = time.time()
-        num_processes = 6 
+        num_processes = 7 
         p = mp.Pool(num_processes)
         mp_solutions = p.starmap(Problem2, zip(n, repeat(rho)))
         #serial_solutions = [Problem2(ic) for ic in n]
@@ -201,22 +244,22 @@ if __name__ == "__main__":
             if minim < 10**(-6):
                 t = np.linspace(0, tlen, n)
 
-                plt.plot(t[location:-1],error[location:-1],color='r')
+                plt.plot(t[location:-1],error[location:-1])
                 plt.title(f'{n} error')
                 plt.show()
-        plt.plot(np.log(narray),minarray)
+        plt.plot(np.log(narray),minarray,color='r')
         stri = f'Parameters:\n Sigma = {sigma}\n beta = {round(beta,3)}\n r = {rho}'
         plt.text(13, 13,stri, style='italic', bbox = {'facecolor': 'white'})
         plt.title('Performance of system for various Steps')
         plt.xlabel('log(Step)')
         plt.ylabel('Minimal Error')
         plt.show()
-    else:
-        ics = [[0.75,0.75,0.75],[10,10,10],[5,5,5],[100,100,100],[50,50,50]]
+    if icrdependance:
+        ics = [[0.75,0.75,0.75],[5.0,5.0,5.0],[10.0,10.0,10.0],[100.0,100.0,100.0],[50.0,50.0,50.0]]
         n = 100000
         for ic in ics:
             print(f"IC in progress:{ic}")
-            rho = np.linspace(25,60,15)
+            rho = np.linspace(25,60,5)
 
             ic2 = tuple(ic)
             print("multiprocessing:", end='')
@@ -242,4 +285,31 @@ if __name__ == "__main__":
         plt.title('Performance of system for various R')
         plt.xlabel('rho')
         plt.ylabel('Drive Function Average Error')
+        plt.show()
+    if rdependance:
+        rho = np.arange(0,250,5)
+        n = 5000000
+
+        print("multiprocessing:", end='')
+        tstart = time.time()
+        num_processes = 7 
+        p = mp.Pool(num_processes)
+        mp_solutions = p.starmap(Problem4, zip(rho, repeat(n)))
+        #serial_solutions = [Problem2(ic) for ic in n]
+        tend = time.time()
+        tmp = tend - tstart
+        print(" %8.3f seconds" % tmp)
+
+        rate = []
+        rhoarray = []
+        for sol1 in mp_solutions:
+            rho1,L,percent = sol1
+            rate.append(percent)
+            rhoarray.append(rho1)
+        plt.plot(rhoarray,rate)
+        stri = f'Parameters:\n Sigma = {sigma}\n beta = {round(beta,3)}'
+        plt.text(190, 3,stri, style='italic', bbox = {'facecolor': 'white'})
+        plt.title('Rate of Convergence of system for various R')
+        plt.xlabel('rho')
+        plt.ylabel('Percent of total time taken for convergence')
         plt.show()
