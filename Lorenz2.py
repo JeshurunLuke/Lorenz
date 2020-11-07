@@ -13,7 +13,7 @@ beta = 8/3
 tlen = 100
 
 #If speed = True --> rk45 integrator else odeint integrator
-speed = True
+speed = False
 
 
 def solve(ic,rho,t):
@@ -190,7 +190,7 @@ def lyap(x, y, yrec):
 
     L = 0.5*(1/sigma)*(e[0]**2) + e[1]**2 + e[2]**2 #Lyaponev Function
  
-    return L
+    return L,Ldot
 def Problem4(rho,n):
     stepper = 'rk45'
    # ics = [rho**(1/2), rho**(1/2), rho+2]
@@ -210,12 +210,13 @@ def Problem4(rho,n):
         sol1 = np.transpose(y)
     ics += np.ones(3)*1000
     y, yrec = Unperturbed(sol1,rho, ics,t, stepper)
-    L = lyap(t, y, yrec)
+    L,Ldot = lyap(t, y, yrec)
     for i in range(0,L.size):
         if L[i] < 0.5:
-            percent = t[i]/t[-1] *100
+            rate = np.average(Ldot[0:i])
+            time = t[i]
             break
-    return rho,L,percent
+    return rho,L,rate, time
 
 if __name__ == "__main__":
     ndependance = False
@@ -223,7 +224,7 @@ if __name__ == "__main__":
     rdependance = True
     if ndependance:
         rho = 60
-        n = [100,1000,5000,10000,50000,100000,1000000,2500000,5000000,9999999]
+        n = [100,1000,5000,10000,50000,100000,1000000]
 
         print("multiprocessing:", end='')
         tstart = time.time()
@@ -241,7 +242,7 @@ if __name__ == "__main__":
             narray.append(n)
             minarray.append(minim)
             print(n,location/n*100, minim)
-            if minim < 10**(-6):
+            if minim < 5*10**(-6):
                 t = np.linspace(0, tlen, n)
 
                 plt.plot(t[location:-1],error[location:-1])
@@ -259,7 +260,7 @@ if __name__ == "__main__":
         n = 100000
         for ic in ics:
             print(f"IC in progress:{ic}")
-            rho = np.linspace(25,60,5)
+            rho = np.linspace(25,70,30)
 
             ic2 = tuple(ic)
             print("multiprocessing:", end='')
@@ -286,9 +287,10 @@ if __name__ == "__main__":
         plt.xlabel('rho')
         plt.ylabel('Drive Function Average Error')
         plt.show()
+    print("To")
     if rdependance:
-        rho = np.arange(0,250,5)
-        n = 5000000
+        rho = np.arange(25,70,5)
+        n = 1000000
 
         print("multiprocessing:", end='')
         tstart = time.time()
@@ -302,14 +304,23 @@ if __name__ == "__main__":
 
         rate = []
         rhoarray = []
+        times = []
         for sol1 in mp_solutions:
-            rho1,L,percent = sol1
+            rho1,L,percent,tc = sol1
             rate.append(percent)
             rhoarray.append(rho1)
-        plt.plot(rhoarray,rate)
+            times.append(tc)
+        plt.plot(rhoarray,np.abs(rate))
         stri = f'Parameters:\n Sigma = {sigma}\n beta = {round(beta,3)}'
         plt.text(190, 3,stri, style='italic', bbox = {'facecolor': 'white'})
         plt.title('Rate of Convergence of system for various R')
         plt.xlabel('rho')
-        plt.ylabel('Percent of total time taken for convergence')
+        plt.ylabel('Average Lyaponov Derivative')
+        plt.show()
+        plt.plot(rhoarray,times)
+        stri = f'Parameters:\n Sigma = {sigma}\n beta = {round(beta,3)}'
+        plt.text(190, 3,stri, style='italic', bbox = {'facecolor': 'white'})
+        plt.title('Rate of Convergence of system for various R')
+        plt.xlabel('rho')
+        plt.ylabel('Time of Convergence')
         plt.show()

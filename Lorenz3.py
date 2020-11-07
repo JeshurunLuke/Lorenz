@@ -244,8 +244,8 @@ def error(x, y, yrec):
     plt.show()
     return L
 
-def Unperturbed(sol1,rho, ic,t, stepper,timer,speed):
-    tlen = t.size
+
+def Unperturbed(sol1,rho, ic,t, stepper,speed):
     signal = np.zeros(sol1[:,0].size)
     driving = signal + sol1[:,0]
 
@@ -256,16 +256,17 @@ def Unperturbed(sol1,rho, ic,t, stepper,timer,speed):
         x,yrec,it = fINT(fRHS,fORD,fBVP,t[0],ic,t[t.size-1],signal.size-1,True, driving = driving, rho = rho)  
 
         tend = time.time()
-        print(f"It took approximatly {tend-tstart} seconds")
+        print(f"{rho}: It took approximatly {tend-tstart} seconds")
     else:
         tstart = time.time()
         sol2 = solved(ic,rho, driving,t)
         yrec = np.transpose(sol2)
         tend = time.time()
-        print(f"It took approximatly {tend-tstart} seconds")
+        print(f"{rho}: It took approximatly {tend-tstart} seconds")
     y = np.transpose(sol1)
     error(t, y, yrec)
 
+    return y,yrec
 def fft(filename, time, sample_rate):
     fftfile = filename
     times  = np.arange(0, time, 1/sample_rate)
@@ -308,11 +309,11 @@ if __name__ == "__main__":
     '''
     3 varables that need attention
     '''
-    n = 100000 #Needs to be atleast above 100,000 for decent recovery
+    n = 1000000 #Needs to be atleast above 100,000 for decent recovery
     tlen = 100 #Need atleast above 100 for decent masking and a certain ratio between n/tlen has to be maintained for convergence dt<0
     #But if you try tlen = 10 with binary it breaks horribly for r>24.8 why?
     print(f'N/tlen = {n/tlen}')
-    sample_rate = 2 #How does sample rate influence?
+    sample_rate = 200000 #How does sample rate influence?
     print(f'N*sample_rate = {tlen*sample_rate}')
     print(n/sample_rate)
 
@@ -334,7 +335,7 @@ if __name__ == "__main__":
 
     
     t = np.linspace(0, tlen, n)
-    ics = np.random.rand(3)
+    ics = np.array([50.0,50.0,50.0])
 
 
     tstart = time.time()
@@ -350,7 +351,7 @@ if __name__ == "__main__":
 
 
     #p2 = mp.Process(target=Perturbed, args=(sol1,rho,ics,binary,t, stepper,timer,speed,Name,times)) #Process for pertubration
-    p1 = mp.Process(target=Unperturbed, args=(sol1,rho, ics,t, stepper,timer,speed)) #Process for synchronization check
+    p1 = mp.Process(target=Unperturbed, args=(sol1,rho, ics,t, stepper,speed)) #Process for synchronization check
     p1.start()
     #p2.start()
 

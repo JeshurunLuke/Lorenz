@@ -179,29 +179,3 @@ def rk45(fRHS,x0,y0,dx,**kwargs):
         xt    = xt + dxtry
         dxtry = np.min(np.array([dx-xt,dxnext]))            # guess next timestep - make sure it's flush with dx.
     return y2,it
-
-#==============================================================
-# function y = backeuler(fRHS,x0,y0,dx)
-#
-# Advances solution of ODE by one implicit Euler step y = y0+f(x+dx,y)*dx, where f = y'
-#
-# input: 
-#   fRHS   : function handle. Needs to return a vector of size(y0);
-#   x0     : starting x
-#   y0     : starting y(x0)
-#   dx     : step size
-# output:
-#   y,1    : vector of results. For consistency with adaptive step size
-#            integrators, we return an additional variable.
-#--------------------------------------------------------------
-
-def backeuler(fRHS,x0,y0,dx,**kwargs):
-    #???????? from here
-    jack = np.array([[998,1998],[-999,-1999]])
- 
-    Ident = np.identity(jack.shape[0])
-    Inverse = np.linalg.inv(Ident-jack*dx )
-    y = np.matmul(Inverse,y0)
-    
-    #???????? to here
-    return y,1
