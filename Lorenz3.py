@@ -95,8 +95,8 @@ def ode_ivp(fRHS,fORD,fBVP,x0,y0,x1,nstep, driv, **kwargs):
     dx      = x[1]-x[0]                    # step size
     it      = np.zeros(nstep+1)
     if driv:
+        finterp = interp1d(x,driving,fill_value='extrapolate')
         for k in range(1,nstep+1):
-            finterp = interp1d(x,driving,fill_value='extrapolate')
             y[:,k],it[k] = fORD(fRHS,x[k-1],y[:,k-1],dx,d = driving, rho = r, smooth =finterp)
     else:
         for k in range(1,nstep+1):        
@@ -293,7 +293,7 @@ if __name__ == "__main__":
     parser.add_argument("sound",type=str,default=1,
                         help="  record: recording\n"
                           "  binary: binary")
-    parser.add_argument("time",type=int,default=1,
+    parser.add_argument("time",type=float,default=1,
                         help="Recording or Binary Time")    
 
     args   = parser.parse_args()
@@ -308,11 +308,12 @@ if __name__ == "__main__":
     '''
     3 varables that need attention
     '''
-    n = 1000000 #Needs to be atleast above 100,000 for decent recovery
-    tlen = 1000 #Need atleast above 100 for decent masking and a certain ratio between n/tlen has to be maintained for convergence dt<0
+    n = 100000 #Needs to be atleast above 100,000 for decent recovery
+    tlen = 100 #Need atleast above 100 for decent masking and a certain ratio between n/tlen has to be maintained for convergence dt<0
     #But if you try tlen = 10 with binary it breaks horribly for r>24.8 why?
     print(f'N/tlen = {n/tlen}')
-    sample_rate = 200000 #How does sample rate influence?
+    sample_rate = 2 #How does sample rate influence?
+    print(f'N*sample_rate = {tlen*sample_rate}')
     print(n/sample_rate)
 
     timer = n/sample_rate #Selects t such that sample rate is maxed to 200,000
@@ -348,8 +349,8 @@ if __name__ == "__main__":
     print(f"Initialization took approximatly {tend-tstart} seconds")
 
 
-    p2 = mp.Process(target=Perturbed, args=(sol1,rho,ics,binary,t, stepper,timer,speed,Name,times)) #Process for pertubration
+    #p2 = mp.Process(target=Perturbed, args=(sol1,rho,ics,binary,t, stepper,timer,speed,Name,times)) #Process for pertubration
     p1 = mp.Process(target=Unperturbed, args=(sol1,rho, ics,t, stepper,timer,speed)) #Process for synchronization check
     p1.start()
-    p2.start()
+    #p2.start()
 

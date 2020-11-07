@@ -10,7 +10,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.colors import cnames
 from matplotlib import animation
 
-prob = 4
+prob = 1
 
 if prob == 4:
     rho = 39
@@ -27,7 +27,7 @@ if prob == 1:
 elif prob == 2:
     tlen = 30
 elif prob == 3:
-    tlen = 30
+    tlen = 10
 elif prob == 4:
     tlen = 30
 
@@ -54,7 +54,7 @@ def init():
 def animate(i,x_t):
     # we'll step two time-steps per frame.  This leads to nice results.
     i = (2 * i) % x_t.shape[1]
-
+    
     for line, pt, xi in zip(lines, pts, x_t):
         x, y, z = xi[:i].T
         line.set_data(x, y)
