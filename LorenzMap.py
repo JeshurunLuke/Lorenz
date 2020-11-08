@@ -65,7 +65,11 @@ def ode_init(stepper,nstep, **kwargs):
         fORD = step.rk45
     else:
         raise Exception('[ode_init]: invalid stepper value: %s' % (stepper))
+<<<<<<< Updated upstream
     x1 = 100#time = 1
+=======
+    x1 = time*100 #time = 1
+>>>>>>> Stashed changes
     x0 = 0
     fINT = ode_ivp
     if ver == 1:
@@ -116,7 +120,8 @@ def check(x,y,it,r,Name, **kwargs):
     #     #lii.set_dash_joinstyle('round')
     #     #lii.set_solid_joinstyle('round')
     #     lii.set_solid_capstyle('round')
-    norm = plt.Normalize(min(y[0,:]),max(y[0,:]))(y[0,:])
+    # norm = plt.Normalize(min(y[0,:]),max(y[0,:]))(y[0,:])
+    norm = plt.Normalize(min(x),max(x))(x)
     for i in range(n-1):
         ax.plot(y[0,i:i+2], y[1,i:i+2], y[2,i:i+2], color=plt.cm.viridis(norm[i]))
 
@@ -130,22 +135,25 @@ def check(x,y,it,r,Name, **kwargs):
     ax.set_zlabel('Z')
     ax.legend()
     
-    fig2, axs = plt.subplots(1,3)
-    normx = plt.Normalize(min(y[0,:]),max(y[0,:]))(y[0,:n-2])
-    normy = plt.Normalize(min(y[1,:]),max(y[1,:]))(y[0,:n-2])
-    normz = plt.Normalize(min(y[2,:]),max(y[2,:]))(y[0,:n-2])
+    ax2 = plt.figure()
+    print(y[2,:])
+    # normx = plt.Normalize(min(y[0,:]),max(y[0,:]))(y[0,:n-2])
+    # normy = plt.Normalize(min(y[1,:]),max(y[1,:]))(y[0,:n-2])
     
-    axs[0].scatter(y[0,0:n-2],y[0,1:n-1],c = plt.cm.viridis(normx))
-    axs[0].set_xlabel('x_n')
-    axs[0].set_ylabel('x_(n+1)')
+    # axs[0].scatter(y[0,0:n-2],y[0,1:n-1],c = plt.cm.viridis(normx))
+    # axs[0].set_xlabel('x_n')
+    # axs[0].set_ylabel('x_(n+1)')
         
-    axs[1].scatter(y[1,0:n-2],y[1,1:n-1],c = plt.cm.viridis(normy))
-    axs[1].set_xlabel('y_n')
-    axs[1].set_ylabel('y_(n+1)')
-        
-    axs[2].scatter(y[2,0:n-2],y[2,1:n-1],c = plt.cm.viridis(normz))
-    axs[2].set_xlabel('z_n')
-    axs[2].set_ylabel('z_(n+1)')
+    # axs[1].scatter(y[1,0:n-2],y[1,1:n-1],c = plt.cm.viridis(normy))
+    # axs[1].set_xlabel('y_n')
+    # axs[1].set_ylabel('y_(n+1)')
+    z = y[2,:]
+    m = z[np.logical_and(x>=0, x<=15)]
+    normz = np.linspace(0,1,len(m))
+
+    ax2.scatter(m[2,0:n-2],m[2,1:n-1],c = plt.cm.viridis(normz))
+    ax2.set_xlabel('z_n')
+    ax2.set_ylabel('z_(n+1)')
 
 def set_step():
     global steps
