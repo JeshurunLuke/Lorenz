@@ -122,9 +122,8 @@ def ode_init(stepper, driver):
 
 
 def Perturbed(sol1, rho, ic, binary,t, stepper,timer,speed,Name,times):
-    tlen = t.size
     sample_rate = sol1[:,0].size/timer
-
+    frac = 0.01
 
     #Generates binary signal according to frequency and sample rate
     if binary:
@@ -143,19 +142,18 @@ def Perturbed(sol1, rho, ic, binary,t, stepper,timer,speed,Name,times):
 
     #Plots Singla, chaos and mask
     signal = sig
-    driving = signal/max(signal) + sol1[:,0]
+    driving = frac*signal/max(signal) + sol1[:,0]
 
-    figure, axs = plt.subplots(3, 1, figsize=(30,4))
-    plt.subplots_adjust(hspace=1)
-    axs[0].plot(s[0], signal[0:s[1].size])
-    axs[0].set_title("Signal")
-    axs[0].set_xlabel("time")
-    axs[1].plot(s[0], sol1[0:s[1].size,0])
-    axs[1].set_title("Chaos")
-    axs[1].set_xlabel("time")
-    axs[2].plot(s[0],driving[0:s[1].size])
-    axs[2].set_title("Mask")
-    axs[2].set_xlabel("time")
+    plt.figure(figsize=(30,4))
+    plt.plot(s[0], signal[0:s[1].size])
+    plt.title("Signal")
+    plt.xlabel("time")
+    plt.show()
+    plt.figure(figsize=(30,4))
+
+    plt.plot(s[0],driving[0:s[1].size])
+    plt.title("Mask")
+    plt.xlabel("time")
     plt.show()
 
     #Fourier Analysis on the Sounds:
@@ -202,7 +200,7 @@ def Perturbed(sol1, rho, ic, binary,t, stepper,timer,speed,Name,times):
 
 
 
-    recovered = (driving - y[0])*max(signal)
+    recovered = (driving - y[0])*max(signal)/frac
     plt.figure(figsize=(30, 4))
     plt.plot(t[0:s[1].size], recovered[0:s[1].size])
     plt.title("Recovered Signal")
@@ -350,8 +348,8 @@ if __name__ == "__main__":
     print(f"Initialization took approximatly {tend-tstart} seconds")
 
 
-    #p2 = mp.Process(target=Perturbed, args=(sol1,rho,ics,binary,t, stepper,timer,speed,Name,times)) #Process for pertubration
+    p2 = mp.Process(target=Perturbed, args=(sol1,rho,ics,binary,t, stepper,timer,speed,Name,times)) #Process for pertubration
     p1 = mp.Process(target=Unperturbed, args=(sol1,rho, ics,t, stepper,speed)) #Process for synchronization check
     p1.start()
-    #p2.start()
+    p2.start()
 

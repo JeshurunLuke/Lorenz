@@ -103,7 +103,7 @@ if __name__ == "__main__":
                                 frames=500, interval=30, blit=True)
 
     # Save as mp4. This requires mplayer or ffmpeg to be installed
-    #anim.save('lorentz_attractor.mp4', fps=15, extra_args=['-vcodec', 'libx264'])
+        anim.save('animation.gif', writer='PillowWriter', fps=2)
 
         plt.show()
     elif prob == 2: #Illustrates Chaotic Nature from small change in conditions

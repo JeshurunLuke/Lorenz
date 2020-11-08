@@ -65,7 +65,7 @@ def ode_init(stepper,nstep, **kwargs):
         fORD = step.rk45
     else:
         raise Exception('[ode_init]: invalid stepper value: %s' % (stepper))
-    x1 = time*10 #time = 1
+    x1 = 100#time = 1
     x0 = 0
     fINT = ode_ivp
     if ver == 1:
