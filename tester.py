@@ -1,84 +1,79 @@
 import numpy as np
-from scipy import integrate
+import matplotlib.pyplot as plt
+from scipy.integrate import odeint
+from scipy.interpolate import interp1d
+import odestep as step
 
-from matplotlib import pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib.colors import cnames
-from matplotlib import animation
+# Constants
+sigma = 10
+b = 8/3
+tmax = 100
+t = np.arange(0.0, tmax, 0.1)
+def lorenzsystem(t, X, dx, **kwargs):
+    r = float(kwargs['rho'])
+    dydx = np.zeros(6)
+    x1, x2, x3, y1, y2, y3 = X
+    dydx[0] = sigma * (x2 - x1)
+    dydx[1] = -x1 * x3 + r*x1 - x2
+    dydx[2] = x1 * x2 - b*x3
+    if 'd' in kwargs:
+        smooth = kwargs['smooth']
+        d = smooth(t)
+        x1+=d
 
-N_trajectories = 20
+    dydx[3] = sigma * (y2 - y1)
+    dydx[4] = -x1 * y3 + r*x1 - y2
+    dydx[5] = x1 * y2 - b*y3
+    return dydx
+    
+def ode_init(stepper, driver):
+    if (stepper == 'rk4'):
+        fORD = step.rk4
+    elif (stepper == 'rk45'):
+        fORD = step.rk45
+    else:
+        raise Exception('[ode_init]: invalid stepper value: %s' % (stepper))
+    fBVP = 0 # default is IVP, but see below.
+    fINT = ode_ivp
+    if driver:
+        fRHS = lorenzsystem
+    else:
+        fRHS = lorenzsystem
+    return fINT,fORD,fRHS,fBVP
 
+def ode_ivp(fRHS,fORD,fBVP,x0,y0,x1,nstep, driv, **kwargs):
+    for key in kwargs:
+        if (key=='driving'):
+            driv = True
+            driving = kwargs['driving']
+    r = float(kwargs['rho'])
 
-def lorentz_deriv(params, t0, sigma=10., beta=8./3, rho=28.0):
-    """Compute the time-derivative of a Lorentz system."""
-    x, y, z = params
+    nvar    = y0.size                      # number of ODEs
+    x       = np.linspace(x0,x1,nstep+1)   # generates equal-distant support points
+    y       = np.zeros((nvar,nstep+1))     # result array 
+    y[:,0]  = y0                           # set initial condition
+    dx      = x[1]-x[0]                    # step size
+    it      = np.zeros(nstep+1)
+    if driv:
+        for k in range(1,nstep+1):
+            finterp = interp1d(x,driving,fill_value='extrapolate')
+            y[:,k],it[k] = fORD(fRHS,x[k-1],y[:,k-1],dx,d = driving, rho = r, smooth =finterp)
+    else:
+        for k in range(1,nstep+1):        
+            y[:,k],it[k] = fORD(fRHS,x[k-1],y[:,k-1],dx, rho = r)
+    return x,y,it
 
-    return [sigma * (y - x), x * (rho - z) - y, x * y - beta * z]
+if __name__ == "__main__":
+    ics = np.array([2000, 20, 30, 15, 20, 30])
+    stepper = 'rk45'
+    n = 10**4
+    rho = 40
 
+    fINT,fORD,fRHS,fBVP = ode_init(stepper,False)
+    x,y,it = fINT(fRHS,fORD,fBVP,t[0],ics,t[t.size-1],n-1, False, rho = rho)
 
-# Choose random starting points, uniformly distributed from -15 to 15
-np.random.seed(1)
-x0 = -15 + 30 * np.random.random((N_trajectories, 3))
+    driving = np.zeros(n)
+    x,y,it = fINT(fRHS,fORD,fBVP,t[0],ics,t[t.size-1],n-1, True, driving = driving, rho = rho)  
 
-# Solve for the trajectories
-t = np.linspace(0, 4, 1000)
-x_t = np.asarray([integrate.odeint(lorentz_deriv, x0i, t)
-                  for x0i in x0])
-print(x_t.shape)
-# Set up figure & 3D axis for animation
-fig = plt.figure()
-ax = fig.add_axes([0, 0, 1, 1], projection='3d')
-ax.axis('off')
-
-# choose a different color for each trajectory
-colors = plt.cm.jet(np.linspace(0, 1, N_trajectories))
-
-# set up lines and points
-lines = sum([ax.plot([], [], [], '-', c=c)
-             for c in colors], [])
-pts = sum([ax.plot([], [], [], 'o', c=c)
-           for c in colors], [])
-
-# prepare the axes limits
-ax.set_xlim((-25, 25))
-ax.set_ylim((-35, 35))
-ax.set_zlim((5, 55))
-
-# set point-of-view: specified by (altitude degrees, azimuth degrees)
-ax.view_init(30, 0)
-
-# initialization function: plot the background of each frame
-def init():
-    for line, pt in zip(lines, pts):
-        line.set_data([], [])
-        line.set_3d_properties([])
-
-        pt.set_data([], [])
-        pt.set_3d_properties([])
-    return lines + pts
-
-# animation function.  This will be called sequentially with the frame number
-def animate(i):
-    # we'll step two time-steps per frame.  This leads to nice results.
-    i = (2 * i) % x_t.shape[1]
-
-    for line, pt, xi in zip(lines, pts, x_t):
-        x, y, z = xi[:i].T
-        line.set_data(x, y)
-        line.set_3d_properties(z)
-
-        pt.set_data(x[-1:], y[-1:])
-        pt.set_3d_properties(z[-1:])
-
-    ax.view_init(30, 0.3 * i)
-    fig.canvas.draw()
-    return lines + pts
-
-# instantiate the animator.
-anim = animation.FuncAnimation(fig, animate, init_func=init,
-                               frames=500, interval=30, blit=True)
-
-# Save as mp4. This requires mplayer or ffmpeg to be installed
-#anim.save('lorentz_attractor.mp4', fps=15, extra_args=['-vcodec', 'libx264'])
-
-plt.show()
+    plt.plot(x,y[2]-y[-1])
+    plt.show()
