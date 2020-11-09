@@ -1,3 +1,23 @@
+#Setup: conda install pyaudio
+
+'''
+What does this Function do?: The Lorenz2.py was used to generate all the plots for 
+the presentations
+Plots include:
+    Animation of lorenz system
+    Chaotic Nature
+    Transient Conditions
+Arguments:
+No command line arguments
+Look at ___name___ = ____main____ for arguments
+
+
+
+Output:
+Problem Dependant
+'''
+
+
 import time
 import multiprocessing as mp
 import numpy as np
@@ -9,39 +29,21 @@ from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.colors import cnames
 from matplotlib import animation
+import Lorenz3 as lor
+from itertools import repeat
+num_processes = 7  # Number of processors you want to use to generate data: has to be less than your # of logical processors
 
-prob = 2
-folder = 'Prob1'
-if prob == 4:
-    rho = 28
-else:
-    rho = 39
+'''
+IMPORTANT IF YOU HAVE A MAC OR UNIX CHANGE ALL THE // to \ to properly save the file
+'''
+def solverk45(ics, rho,t):
+    stepper = 'rk45'
+    fINT,fORD,fRHS,fBVP = lor.ode_init(stepper,False)
+    x,y,it = fINT(fRHS,fORD,fBVP,t[0],ics,t[t.size-1],n-1, False, rho = rho)  
+    sol1 = np.transpose(y)
+    return sol1
 
 
-
-
-sigma = 10.0
-beta = 8/3
-if prob == 1:
-    tlen = 5
-elif prob == 2:
-    tlen = 30
-elif prob == 3:
-    tlen = 10
-elif prob == 4:
-    tlen = 30
-
-n = 1600
-def lorenz(q, t, sigma, rho, beta):
-    x, y, z = q
-    return [sigma*(y - x), x*(rho - z) - y, x*y - beta*z]
-def solve(ic):
-    t = np.linspace(0, tlen, n)
-    sigma = 10.0
-    beta = 8/3
-
-    sol = odeint(lorenz, ic, t, args=(sigma, rho, beta), rtol=1e-10, atol=1e-12)
-    return sol
 def init():
     for line, pt in zip(lines, pts):
         line.set_data([], [])
@@ -63,7 +65,7 @@ def animate(i,x_t):
         pt.set_data(x[-1:], y[-1:])
         pt.set_3d_properties(z[-1:])
 
-    ax.view_init(30, 0.3 * i)
+    #ax.view_init(30, 0.3 * i)
     fig.canvas.draw()
     return lines + pts
 
@@ -71,22 +73,51 @@ def update(num, data,line):
     line.set_data(data[:2, :num])
     line.set_3d_properties(data[2, :num])
 if __name__ == "__main__":
+    prob = 1    #Can be one of 3
+
+    folder = 'Prob1' #Folder where your files are stored
+    speed = True
+    n = 100000
+
+
+    rho = 100
+    sigma = 10.0
+    beta = 8/3
+
+
+    if prob == 1:
+        tlen = 60
+    elif prob == 2:
+        tlen = 30
+    elif prob == 3:
+        tlen = 10
+    
+    pather = os.getcwd() + '\\Data'
+    try:
+        os.mkdir(pather)
+    except:
+        pass
+ 
 
     pather = os.getcwd() + '\\Data' + "\\" + folder
     try:
         os.mkdir(pather)
     except:
         pass
+
+    t = np.linspace(0, tlen, n)
+
     if prob == 1: #This Problem graphs the cool 3d to show transient conditions don't matter
-        Ntraj = 20
-        np.random.seed(1)
-        ics = -15 + 30 * np.random.random((Ntraj, 3))
+        Ntraj = 2
+        ics = -15 + 30 * (2*np.random.random((Ntraj, 3))-1)
 
         tstart = time.time()
-        p = mp.Pool(5)
-        solns = p.map(solve, ics)
+        p = mp.Pool(num_processes)
+        if speed:
+            solns = p.starmap(lor.solve, zip(ics, repeat(rho),repeat(t)))
+        else:
+            solns = p.starmap(solverk45, zip(ics, repeat(rho),repeat(t)))
         solns = np.array(solns)
-        print(solns.shape)
         tend = time.time()
         print(f"multiprocessing: {tend-tstart} seconds")
     
@@ -103,12 +134,14 @@ if __name__ == "__main__":
                 for c in colors], [])
 
         # prepare the axes limits
-        ax.set_xlim((-25, 25))
-        ax.set_ylim((-35, 35))
-        ax.set_zlim((5, 55))
+        print(solns.shape)
+        print(min(solns[0,0,:]))
+        ax.set_xlim((min(solns[0,:,0]), max(solns[0,:,0])))
+        ax.set_ylim((min(solns[0,:,1]), max(solns[0,:,1])))
+        ax.set_zlim((min(solns[0,:,2]), max(solns[0,:,2])))
 
         # set point-of-view: specified by (altitude degrees, azimuth degrees)
-        ax.view_init(30, 0)
+        ax.view_init(0, 0)
         anim = animation.FuncAnimation(fig, animate, init_func=init,fargs=[solns],
                                 frames=500, interval=30, blit=True)
 
@@ -119,10 +152,13 @@ if __name__ == "__main__":
         anim.save(pat, writer='imagemagick', fps=30)
 
     elif prob == 2: #Illustrates Chaotic Nature from small change in conditions
-        t = np.linspace(0, tlen, n)
-        ics = np.array([[1.000,0,0],[1.0001,0,0]])
-        p = mp.Pool(5)
-        solns = p.map(solve, ics)
+        t = np.linspace(0, tlen, n) #Time for lorenz system
+        ics = np.array([[1.000,0,0],[1.0001,0,0]]) #Initial condition small differnece
+        p = mp.Pool(num_processes)
+        if speed: #scipy integrator
+            solns = p.starmap(lor.solve, zip(ics, repeat(rho),repeat(t)))
+        else: #Our integrator
+            solns = p.starmap(solverk45, zip(ics, repeat(rho),repeat(t)))
         plt.title('Chaos')
         plt.plot(t,solns[0][:,0])
         plt.plot(t,solns[1][:,0])
@@ -134,34 +170,14 @@ if __name__ == "__main__":
         t = np.linspace(0, tlen, n)
  
         ics = np.array([100,100,100])
-        soln = solve(ics)
+        if speed: #Uses scipy integrator
+            soln = lor.solve(ics)
+        else: #Uses our integrator 
+            solverk45(ics, rho,t)
+
         plt.plot(t, soln[:,0])
         plt.title('Transients disappear')
         plt.xlabel('time')
         plt.ylabel('x')
         plt.show()
         
-    elif prob == 4:
-        Ntraj = 1
-        t = np.linspace(0, tlen, n)
-        ics = np.array([rho**(1/2),rho**(1/2),rho])
-        soln = solve(ics)   
-        fig = plt.figure()
-        ax = p3.Axes3D(fig)
-
-        col = ['black','green','cyan','blue','red','black','black','black','black']
-
-        y = np.transpose(soln)
-        N = y.shape[1]-1
-        line, = ax.plot(y[0, :], y[1, :], y[2, :], '-', color=col[1])
-
-        # Setting the axes properties
-        ax.set_xlim3d([min(y[0])-1, max(y[0])+1])
-        ax.set_zlim3d([min(y[2])-1, max(y[2])+1])
-        ax.set_zlabel('Z')
-        ax.legend()
-        ani = animation.FuncAnimation(fig, update, N, fargs=(y, line), interval=1000/N, blit=False)
-        plt.show()        
-        pat = pather + f"\\prob{int(prob)}with{int(rho)}.gif"
-        ani.save(pat, writer='imagemagick', fps=100)
-

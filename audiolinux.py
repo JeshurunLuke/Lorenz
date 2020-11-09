@@ -5,22 +5,31 @@ import wave, struct
 import matplotlib.pyplot as plt
 from scipy.io import wavfile
 
-
-def binary(A, T,time,signal_rate, folder):
+#Generates binary
+def binary(A, T,time,signal_rate, folder, random):
     
     signal = []
     amount = int(signal_rate/T)
     times =int(time*T)
-
-    shot = 1
-    for elem in range(0, times):
-        shot *= -1
-        if shot == 1:
-            for elem in range(0, amount):
-                signal.append(1)
-        else:
-            for elem in range(0, amount):
-                signal.append(0)
+    if random == False:
+        shot = 1
+        for elem in range(0, times):
+            shot *= -1
+            if shot == 1:
+                for elem in range(0, amount):
+                    signal.append(1)
+            else:
+                for elem in range(0, amount):
+                    signal.append(0)
+    else:
+        for elem in range(0, times):
+            shot = np.random.rand()
+            if shot > 0.5:
+                for elem in range(0, amount):
+                    signal.append(1)
+            else:
+                for elem in range(0, amount):
+                    signal.append(0)
     times = np.linspace(0, time, len(signal))
     signal = A*np.array(signal)
     plt.figure(figsize=(30, 4))
@@ -35,16 +44,15 @@ def binary(A, T,time,signal_rate, folder):
     plt.show()
     signal = np.array([times,signal])
     return signal
+
+#Records based on Pyaudio docs
 def record(time,rate, pather):
     set_chunk()
     # the file name output you want to record into
     filename = pather
-    # set the chunk size of 1024 samples
     # sample format
     FORMAT = pyaudio.paInt16
-    # mono, change to 2 if you want stereo
     channels = 1
-    # 44100 samples per second
     sample_rate = rate
     record_seconds = time
     # initialize PyAudio object
@@ -61,7 +69,7 @@ def record(time,rate, pather):
     for _ in range(int(sample_rate / chunk * record_seconds)):
         data = stream.read(chunk)
         # if you want to hear your voice while recording
-        stream.write(data)
+        #stream.write(data)
         frames.append(data)
     print("Finished recording.")
     # stop and close stream
@@ -82,6 +90,8 @@ def record(time,rate, pather):
     wf.writeframes(b"".join(frames))
     # close the file
     wf.close()
+
+#Play backs for .wav file
 def playback(path):
     print(" :REWIND")
     CHUNK = chunk
@@ -110,23 +120,21 @@ def playback(path):
 
     # close PyAudio (5)
     p.terminate()
+
+#Waveform graph for .wav file
 def waveform(pather, folder, graph):
     samplerate, data = wavfile.read(pather)
     times = np.arange(len(data))/float(samplerate)
 
-    # Make the plot
-    # You can tweak the figsize (width, height) in inches
     if graph:
         plt.figure(figsize=(30, 4))
         plt.fill_between(times, data) 
         plt.xlim(times[0], times[-1])
         plt.xlabel('time (s)')
         plt.ylabel('amplitude')
-        pat = os.getcwd() + "/Sound" + "/" + folder + "/recording.png"
+        pat = os.getcwd() + "/Sound/" + folder + "/recording.png"
         plt.savefig(pat, dpi=100)
         plt.show()
-    # You can set the format by changing the extension
-    # like .pdf, .svg, .eps
 
     sound = np.array([times,data])
     return sound
@@ -164,6 +172,8 @@ def Setter(folder, mode, **kwargs): #Provide Folder Name(inside sound Directory)
             rate = int(kwargs[key])
         if (key=='time'):
             time = int(kwargs[key])
+        if (key=='rand'):
+            random = kwargs[key]
      
 
     path = os.getcwd() + "/Sound/" + str(folder)
@@ -173,7 +183,7 @@ def Setter(folder, mode, **kwargs): #Provide Folder Name(inside sound Directory)
         pass
     pather = path + "/" + name
     if mode == 1:
-        signal = binary(A,T,time,rate, folder)
+        signal = binary(A,T,time,rate, folder, random)
     else:
         record(T,rate, pather)   
         playback(pather)

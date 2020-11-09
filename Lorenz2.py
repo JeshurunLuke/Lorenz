@@ -1,184 +1,132 @@
+#Setup: conda install pyaudio
+
+'''
+What does this Function do?: The Lorenz2.py was used to generate all the plots for 
+the synchronization portion of the report.
+Plots include:
+    Optimization for n: steps required for 10^-6 (EXTENT OF CONVERGENCE)
+    Optimizaiton for r and ic: (OVERALL PERFORMACE)
+    Optimization for r: (RATE OF CONVERGENCE)
+
+Arguments:
+No command line arguments
+Look at ___name___ = ____main____ for arguments
+
+
+
+Output:
+Problem Dependant
+'''
+
+
+
 import numpy as np
 import time as time
 import matplotlib.pyplot as plt
-from scipy.integrate import odeint
-from scipy.interpolate import interp1d
-import audio as ad
-import odestep as step
+
 import multiprocessing as mp
 from itertools import repeat
+import Lorenz3 as lor
 # Constants
 sigma = 10.0
 beta = 8/3
-tlen = 1000
-
-#If speed = True --> rk45 integrator else odeint integrator
-speed = False
-
-
-def solve(ic,rho,t):
-    sol = odeint(lorenz, ic, t, args=(sigma, rho, beta), rtol=1e-6, atol=1e-6)
-    return sol
-
-def solved(ic,rho,driving,t):
-    finterp = interp1d(t,driving,fill_value='extrapolate')
-    sol = odeint(lorenznew, ic, t, args=( sigma, rho, beta,driving,finterp), rtol=1e-6, atol=1e-6)
-    return sol
-
-def lorenz(q, t, sigma, rho, beta):
-    x, y, z = q
-    return [sigma*(y - x), x*(float(rho) - z) - y, x*y - beta*z]
-
-def lorenznew(q, t, sigma, rho, beta, driving,finterp):
-    x, y, z = q
-    d = finterp(t)
-    return [sigma*(y - x), d*(float(rho) - z) - y, d*y - beta*z]
-
-def lorenzi(x,y,dx,**kwargs):
-    dydx    = np.zeros(3)
-    r = float(kwargs['rho'])
-    # ????? from here
-    dydx[0] = sigma*(y[1]-y[0])
-    dydx[1] = r*y[0]-y[1]-y[0]*y[2]
-    dydx[2] = y[0]*y[1]-beta*y[2]
-    # ????? to here
-    return dydx
-
-def lorenzr(x,y,dx,**kwargs):
-    dydx    = np.zeros(3)
- 
-    d = kwargs['d']
-    smooth = kwargs['smooth']
-    d = smooth(x)
-    r = float(kwargs['rho'])
+num_processes = 7  # Number of processors you want to use to generate data: has to be less than your # of logical processors
 
 
 
-    # ????? from here
-    dydx[0] = sigma*(y[1]-y[0])
-    dydx[1] = r*d-y[1]-d*y[2]
-    dydx[2] = d*y[1]-beta*y[2]
-    # ????? to here
-    return dydx
-def ode_ivp(fRHS,fORD,fBVP,x0,y0,x1,nstep, driv, **kwargs):
-    for key in kwargs:
-        if (key=='driving'):
-            driv = True
-            driving = kwargs['driving']
-    r = float(kwargs['rho'])
-
-    nvar    = y0.size                      # number of ODEs
-    x       = np.linspace(x0,x1,nstep+1)   # generates equal-distant support points
-    y       = np.zeros((nvar,nstep+1))     # result array 
-    y[:,0]  = y0                           # set initial condition
-    dx      = x[1]-x[0]                    # step size
-    it      = np.zeros(nstep+1)
-    if driv:
-        finterp = interp1d(x,driving,fill_value='extrapolate')
-        for k in range(1,nstep+1):
-            y[:,k],it[k] = fORD(fRHS,x[k-1],y[:,k-1],dx,d = driving, rho = r, smooth =finterp)
-    else:
-        for k in range(1,nstep+1):        
-            y[:,k],it[k] = fORD(fRHS,x[k-1],y[:,k-1],dx, rho = r)
-    return x,y,it
 
 
-
-def ode_init(stepper, driver):
-    if (stepper == 'rk4'):
-        fORD = step.rk4
-    elif (stepper == 'rk45'):
-        fORD = step.rk45
-    else:
-        raise Exception('[ode_init]: invalid stepper value: %s' % (stepper))
-    fBVP = 0 # default is IVP, but see below.
-    fINT = ode_ivp
-    if driver:
-        fRHS = lorenzr
-    else:
-        fRHS = lorenzi
-    return fINT,fORD,fRHS,fBVP
-
-
-def Unperturbed(sol1,rho, ic,t, stepper):
-    tlen = t.size
+###
+# Unperturbed function
+# Performance syncriozation with signal = 0 to check for convergence
+def Unperturbed(sol1,rho, ic,t, stepper,speed):
     signal = np.zeros(sol1[:,0].size)
     driving = signal + sol1[:,0]
 
-    if speed == False:
+    if speed == False: #Receiver differential equations with our integrator
         tstart = time.time()
 
-        fINT,fORD,fRHS,fBVP = ode_init(stepper, True)
+        fINT,fORD,fRHS,fBVP = lor.ode_init(stepper, True)
         x,yrec,it = fINT(fRHS,fORD,fBVP,t[0],ic,t[t.size-1],signal.size-1,True, driving = driving, rho = rho)  
 
         tend = time.time()
         print(f"{rho}: It took approximatly {tend-tstart} seconds")
-    else:
+    else: #Receiver differential equation with scipy integrator
         tstart = time.time()
-        sol2 = solved(ic,rho, driving,t)
+        sol2 = lor.solvrec(ic,rho, driving,t)
         yrec = np.transpose(sol2)
         tend = time.time()
         print(f"{rho}: It took approximatly {tend-tstart} seconds")
-    y = np.transpose(sol1)
+
+    y = np.transpose(sol1) 
+
     return y,yrec
 
-def Problem2(n,rho):
+
+##Looks at extent of integration used to find level of synchronization for different n
+def Problem2(n,rho,speed,tlen):
     stepper = 'rk45'
-   # ics = [rho**(1/2), rho**(1/2), rho+2]
 
-    t = np.linspace(0, tlen, n)
-    #ics = np.random.rand(3)
-    ics = np.ones(3)*50.0
-    if speed:
+    t = np.linspace(0, tlen, n) #t space for Chaotic system normally array from 0 to 100
+    ics = np.ones(3)*50.0 #Initial Conditions
+
+    if speed == True: #Uses scipy integrator to get trajectory: Driving
         ics = list(ics)
+        sol1 = lor.solve(ics,rho,t)
 
-        sol1 = solve(ics,rho,t)
-
-    else:
+    else: #Uses our integrators to solve for trajectories: Driving
         ics = np.array(ics)
-        fINT,fORD,fRHS,fBVP = ode_init(stepper,False)
+        fINT,fORD,fRHS,fBVP = lor.ode_init(stepper,False)
         x,y,it = fINT(fRHS,fORD,fBVP,t[0],ics,t[t.size-1],n-1, False, rho = rho)  
         sol1 = np.transpose(y)
+    #Preturbs initial conditions by a vector [10,10,10]
     ics += np.ones(3)*10
-    y, yrec = Unperturbed(sol1,rho, ics,t, stepper)
-    error = np.abs(y[0]-yrec[0])
+    y, yrec = Unperturbed(sol1,rho, ics,t, stepper,speed) #Solves receiver with a driving = 0
 
+    #Gets the error
+    error = np.abs(y[0]-yrec[0])
+    
+    #Gets the halfway point length 
     ss = y[0][n//2:-1].size
+    #finds the minimium value as an approximation to syncrhoization time after the half way point
     m = np.min(np.abs(y[0][n//2:-1]-yrec[0][n//2:-1]))
     
     location = list(np.abs(y[0][n//2:-1]-yrec[0][n//2:-1])).index(m)
     location += ss
-
+    
+    #Averages from minimimum to end of integration time
     m = np.average(error[location:-1])
 
     return n,m, location, error
 
-def Problem3(rho,n,ic):
+##Looks at Extent and Rate of integration with an average used to find level of synchronization for different r and initial conditions
+def Problem3(rho,n,ic,speed,tlen):
     print(f'{rho} with {ic} intialization')
     stepper = 'rk45'
-   # ics = [rho**(1/2), rho**(1/2), rho+2]
 
     t = np.linspace(0, tlen, n)
-    #ics = np.random.rand(3)
-    if speed:
+    if speed: #Uses scipy integrator to get trajectory: Driving
         ics = list(ic)
+        sol1 = lor.solve(ics,rho,t)
 
-        sol1 = solve(ics,rho,t)
-
-    else:
+    else: #Uses our integrators to solve for trajectories: Driving
         ics = np.array(ic)
-        fINT,fORD,fRHS,fBVP = ode_init(stepper,False)
+        fINT,fORD,fRHS,fBVP = lor.ode_init(stepper,False)
         x,y,it = fINT(fRHS,fORD,fBVP,t[0],ics,t[-1],n-1, False, rho = rho)  
         sol1 = np.transpose(y)
     print(f'{rho} with {ic} Synchronizaiton')
 
+    #Preturbs initial conditions by a vector [10,10,10]
     ics += np.ones(3)*10
-    y, yrec = Unperturbed(sol1,rho, ics,t, stepper)
+    y, yrec = Unperturbed(sol1,rho, ics,t, stepper,speed)  #Solves receiver with a driving = 0
+    
+    #Gets the error and averages   
     error = np.abs(y[0]-yrec[0])
-
     m = np.average(error)
 
     return rho,m, error
+
+#Gets lyaponov and lyaponov derivate evaluation
 def lyap(x, y, yrec):
     e = np.zeros((3,y[0].size))
     e[0] = y[0]-yrec[0]
@@ -189,28 +137,32 @@ def lyap(x, y, yrec):
     Ldot = -(e[0]-0.5*e[1])**2-0.75*(e[1]**2)-4*beta*(e[2]**2) #Lyaponev Derivative
 
     L = 0.5*(1/sigma)*(e[0]**2) + e[1]**2 + e[2]**2 #Lyaponev Function
- 
+
     return L,Ldot
-def Problem4(rho,n):
+
+
+##Looks at Rate of integration with an average used to find level of synchronization for different r 
+def Problem4(rho,n,speed,tlen):
     stepper = 'rk45'
-   # ics = [rho**(1/2), rho**(1/2), rho+2]
 
     t = np.linspace(0, tlen, n)
-    #ics = np.random.rand(3)
     ics = np.ones(3)*50.0
-    if speed:
+    if speed:#Uses scipy integrator to get trajectory: Driving
         ics = list(ics)
 
-        sol1 = solve(ics,rho,t)
+        sol1 = lor.solve(ics,rho,t)
 
-    else:
+    else: #Uses our integrators to solve for trajectories: Driving
         ics = np.array(ics)
-        fINT,fORD,fRHS,fBVP = ode_init(stepper,False)
+        fINT,fORD,fRHS,fBVP = lor.ode_init(stepper,False)
         x,y,it = fINT(fRHS,fORD,fBVP,t[0],ics,t[t.size-1],n-1, False, rho = rho)  
         sol1 = np.transpose(y)
     ics += np.ones(3)*1000
-    y, yrec = Unperturbed(sol1,rho, ics,t, stepper)
+    y, yrec = Unperturbed(sol1,rho, ics,t, stepper,speed) #Solves receiver with a driving = 0
+    
+    #Gets the Lyaponov and checks for when its below 0.5 as a way to quanity rate of rxn
     L,Ldot = lyap(t, y, yrec)
+    print(f"Initial Lyaponov value: {L[0]}")
     for i in range(0,L.size):
         if L[i] < 0.5:
             rate = np.average(Ldot[0:i])
@@ -218,23 +170,41 @@ def Problem4(rho,n):
             break
     return rho,L,rate, time
 
-if __name__ == "__main__":
+
+'''
+Default:
     ndependance = True
     icrdependance = False
     rdependance = False
-    if ndependance:
-        rho = 60
-        n = [100,1000,5000,10000,50000,100000,1000000]
+'''
+if __name__ == "__main__":
+    ndependance = False ##Looks at extent of integration used to find level of synchronization for different n
+    icrdependance = True ##Looks at Extent and Rate of integration with an average used to find level of synchronization for different r and initial conditions
+    rdependance = False ##Looks at Rate of integration with an average used to find level of synchronization for different r and initial conditions
 
+    tlen = 100
+    #If speed = False --> rk45 integrator else odeint integrator
+    speed = True
+
+
+    #If speed = False --> rk45 integrator else odeint integrator
+
+    if ndependance:
+
+        rho = 60 #Sets r
+        n = [100,1000,5000,10000,50000,100000,1000000,2500000,5000000]
+
+        #Uses parallel run to run all the different n systems
         print("multiprocessing:", end='')
         tstart = time.time()
-        num_processes = 7 
         p = mp.Pool(num_processes)
-        mp_solutions = p.starmap(Problem2, zip(n, repeat(rho)))
+        mp_solutions = p.starmap(Problem2, zip(n, repeat(rho),repeat(speed),repeat(tlen))) 
         #serial_solutions = [Problem2(ic) for ic in n]
         tend = time.time()
         tmp = tend - tstart
         print(" %8.3f seconds" % tmp)
+
+
         narray = []
         minarray = []
         for sol1 in mp_solutions:
@@ -242,12 +212,14 @@ if __name__ == "__main__":
             narray.append(n)
             minarray.append(minim)
             print(n,location/n*100, minim)
+            #Plots end of error if the requirement is met
             if minim < 5*10**(-6):
                 t = np.linspace(0, tlen, n)
 
                 plt.plot(t[location:-1],error[location:-1])
                 plt.title(f'{n} error')
                 plt.show()
+            
         plt.plot(np.log(narray),minarray,color='r')
         stri = f'Parameters:\n Sigma = {sigma}\n beta = {round(beta,3)}\n r = {rho}'
         plt.text(13, 13,stri, style='italic', bbox = {'facecolor': 'white'})
@@ -256,22 +228,28 @@ if __name__ == "__main__":
         plt.ylabel('Minimal Error')
         plt.show()
     if icrdependance:
+
         ics = [[0.75,0.75,0.75],[5.0,5.0,5.0],[10.0,10.0,10.0],[100.0,100.0,100.0],[50.0,50.0,50.0]]
-        n = 100000
+        n = 100000 #Sets number of steps
+        #Iterates through each IC
         for ic in ics:
             print(f"IC in progress:{ic}")
-            rho = np.linspace(25,70,30)
+            rho = np.linspace(25,70,15)
 
             ic2 = tuple(ic)
+            
+            #Uses parallel run to run all the different r systems
             print("multiprocessing:", end='')
             tstart = time.time()
-            num_processes = 6 
             p = mp.Pool(num_processes)
-            mp_solutions = p.starmap(Problem3, zip(rho, repeat(n), repeat(ic2)))
+            mp_solutions = p.starmap(Problem3, zip(rho, repeat(n), repeat(ic2),repeat(speed),repeat(tlen)))
             #serial_solutions = [Problem2(ic) for ic in n]
             tend = time.time()
             tmp = tend - tstart
             print(" %8.3f seconds" % tmp)
+
+
+
             rhoarray = []
             minarray = []
             for sol1 in mp_solutions:
@@ -288,16 +266,15 @@ if __name__ == "__main__":
         plt.ylabel('Drive Function Average Error')
         plt.show()
     print("To")
-    if rdependance:
-        rho = np.arange(25,70,5)
+    if rdependance: #Checks rate for different r 
+        rho = np.arange(25,70,5) 
         n = 1000000
-
+        
+        #Uses parallel run to run all the different r systems
         print("multiprocessing:", end='')
         tstart = time.time()
-        num_processes = 7 
         p = mp.Pool(num_processes)
-        mp_solutions = p.starmap(Problem4, zip(rho, repeat(n)))
-        #serial_solutions = [Problem2(ic) for ic in n]
+        mp_solutions = p.starmap(Problem4, zip(rho, repeat(n),repeat(speed),repeat(tlen)))
         tend = time.time()
         tmp = tend - tstart
         print(" %8.3f seconds" % tmp)
@@ -310,6 +287,8 @@ if __name__ == "__main__":
             rate.append(percent)
             rhoarray.append(rho1)
             times.append(tc)
+
+        
         plt.plot(rhoarray,np.abs(rate))
         stri = f'Parameters:\n Sigma = {sigma}\n beta = {round(beta,3)}'
         plt.text(190, 3,stri, style='italic', bbox = {'facecolor': 'white'})

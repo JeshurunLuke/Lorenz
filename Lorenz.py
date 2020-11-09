@@ -13,32 +13,17 @@ import os
 from argparse import RawTextHelpFormatter
 import odestep as step
 import Lorenz3 as lor
-import Lorenz3 as lor2
 
 sigma = 10.0
 beta = 8/3
 
 def check(x,y,rho):
-      
-    # fig = plt.figure()
-    # ax = p3.Axes3D(fig)
+
     n = len(x)       
-    # points = np.array([y[0,:],y[1,:],y[2,:]]).T.reshape(-1,1,3)
-    # segments = np.concatenate([points[:-1], points[1:]], axis=1)
-    
-    # cmap=plt.get_cmap('copper')
-    # colors=[cmap(float(ii)/(n-1)) for ii in range(n-1)]
-    
-    #plot
+
     fig = plt.figure()
     ax = fig.gca(projection='3d')
-    
-    # for ii in range(n-1):
-    #     segii=segments[ii]
-    #     lii,=ax.plot(segii[:,0],segii[:,1],segii[:,2],color=colors[ii],linewidth=2)
-    #     #lii.set_dash_joinstyle('round')
-    #     #lii.set_solid_joinstyle('round')
-    #     lii.set_solid_capstyle('round')
+
     norm = plt.Normalize(min(y[0,:]),max(y[0,:]))(y[0,:])
     print(f"It started: {rho}")
     for i in range(n-1):
@@ -78,8 +63,9 @@ def integ(rho, n,tlen):
     x,y,it = fINT(fRHS,fORD,fBVP,t[0],ics,t[t.size-1],n-1, False, rho = rho) 
     check(x,y,rho)
 def solve(ic,rho,t):
-    sol = odeint(lor2.lorenz, ic, t, args=(sigma, rho, beta), rtol=1e-6, atol=1e-6)
+    sol = odeint(lor.lorenz, ic, t, args=(sigma, rho, beta), rtol=1e-6, atol=1e-6)
     return sol,rho
+    
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=RawTextHelpFormatter)
     parser.add_argument("stepper",type=str,default='euler',
