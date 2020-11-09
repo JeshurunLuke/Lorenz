@@ -11,6 +11,7 @@ import multiprocessing as mp
 import audio as ad 
 import argparse  # allows us to deal with arguments to main()
 
+
 from argparse import RawTextHelpFormatter
 import odestep as step
 '''
@@ -128,7 +129,7 @@ def Perturbed(sol1, rho, ic, binary,t, stepper,timer,speed,Name,times):
     #Generates binary signal according to frequency and sample rate
     if binary:
         mode = 1
-        cycpersec = 4 #Cycles/second
+        cycpersec = 1000 #Cycles/second
 
         s = ad.Setter(Name, mode,T = cycpersec,time = times, A = 100,rate = sample_rate)
         sig = np.zeros(sol1[:,0].size)
@@ -139,6 +140,8 @@ def Perturbed(sol1, rho, ic, binary,t, stepper,timer,speed,Name,times):
         s = ad.Setter(Name, mode,T = times, rate = sample_rate)
         sig = np.zeros(sol1[:,0].size)
         sig[0:s[1].size] = s[1]
+        ad.play(s[1], Name, 'initial', sample_rate, time)
+
 
     #Plots Singla, chaos and mask
     signal = sig
@@ -157,9 +160,9 @@ def Perturbed(sol1, rho, ic, binary,t, stepper,timer,speed,Name,times):
     plt.show()
 
     #Fourier Analysis on the Sounds:
-    if binary == False:
+    if binary == False or binary == True:
         #Fourier Spectrum Plots
-        figure, axes = plt.subplots(2, 1, figsize=(30,4))
+        figure, axes = plt.subplots(2, 1, figsize=(15,10))
         plt.subplots_adjust(hspace=1)
 
         frequencies, fourierTransform = fft(signal[0:s[1].size]/max(signal[0:s[1].size]), times, sample_rate) #Signal FFT
@@ -168,10 +171,12 @@ def Perturbed(sol1, rho, ic, binary,t, stepper,timer,speed,Name,times):
         axes[0].plot(frequencies[0:i], abs(fourierTransform[0:i]), label = 'Signal')
 
         frequencies, fourierTransform = fft(sol1[0:s[1].size,0]/max(sol1[0:s[1].size,0]), times, sample_rate) #Chaotic FFT
-        axes[0].plot(frequencies[0:i], abs(fourierTransform[0:i]), label = 'Chaos')                       
+        axes[0].plot(frequencies[0:i], abs(fourierTransform[0:i]), label = 'Chaos')        
+               
         axes[0].set_xlabel('Frequency')
         axes[0].set_ylabel('Amplitude')
         axes[0].set_title('Signal')
+        axes[0].legend()
 
         #2nd subplot graphs mask fft
         frequencies, fourierTransform = fft(driving[0:s[1].size], times, sample_rate) #Signal + Chaotic FFT
@@ -204,6 +209,7 @@ def Perturbed(sol1, rho, ic, binary,t, stepper,timer,speed,Name,times):
     plt.figure(figsize=(30, 4))
     plt.plot(t[0:s[1].size], recovered[0:s[1].size])
     plt.title("Recovered Signal")
+
     plt.show()
 
     if binary == False:
@@ -217,6 +223,8 @@ def Perturbed(sol1, rho, ic, binary,t, stepper,timer,speed,Name,times):
         try:
             ad.play(recovered, Name, 'recovered', sample_rate, time)
         except:
+            ad.play(recovered/2.0, Name, 'recovered', sample_rate, time)
+
             print('Signal too strong')
             pass
 
@@ -277,6 +285,8 @@ def fft(filename, time, sample_rate):
     return frequencies, fourierTransform
 
 
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=RawTextHelpFormatter)
     parser.add_argument("stepper",type=str,default='euler',
@@ -308,7 +318,7 @@ if __name__ == "__main__":
     3 varables that need attention
     '''
     n = 1000000 #Needs to be atleast above 100,000 for decent recovery
-    tlen = 100 #Need atleast above 100 for decent masking and a certain ratio between n/tlen has to be maintained for convergence dt<0
+    tlen = 1000 #Need atleast above 100 for decent masking and a certain ratio between n/tlen has to be maintained for convergence dt<0
     #But if you try tlen = 10 with binary it breaks horribly for r>24.8 why?
     print(f'N/tlen = {n/tlen}')
     sample_rate = 200000 #How does sample rate influence?

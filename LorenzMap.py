@@ -14,7 +14,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d.art3d import Line3DCollection
 from matplotlib.colors import ListedColormap, BoundaryNorm
 import matplotlib.cm as cm
-
+from scipy.signal import butter,filtfilt
 
 def param(x,**kwargs):
     for key in kwargs:
@@ -65,11 +65,7 @@ def ode_init(stepper,nstep, **kwargs):
         fORD = step.rk45
     else:
         raise Exception('[ode_init]: invalid stepper value: %s' % (stepper))
-<<<<<<< Updated upstream
     x1 = 100#time = 1
-=======
-    x1 = time*100 #time = 1
->>>>>>> Stashed changes
     x0 = 0
     fINT = ode_ivp
     if ver == 1:
@@ -165,7 +161,7 @@ def run(stepper, nstep, ver, Name, rparam, sound, drive):
     x,y,it = fINT(fRHS,fORD,fBVP,x0,y0,x1,nstep,s=10,b=8/3,r=rparam)
     check(x,y,it, rparam,Name)
     plt.show()
-    
+
 if __name__ == "__main__": 
 
     #Default Run : python Lorenz.py rk4 100000 3 Practice 30 record x

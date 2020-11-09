@@ -10,7 +10,7 @@ from itertools import repeat
 # Constants
 sigma = 10.0
 beta = 8/3
-tlen = 100
+tlen = 1000
 
 #If speed = True --> rk45 integrator else odeint integrator
 speed = False
@@ -219,9 +219,9 @@ def Problem4(rho,n):
     return rho,L,rate, time
 
 if __name__ == "__main__":
-    ndependance = False
+    ndependance = True
     icrdependance = False
-    rdependance = True
+    rdependance = False
     if ndependance:
         rho = 60
         n = [100,1000,5000,10000,50000,100000,1000000]

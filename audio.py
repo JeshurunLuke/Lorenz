@@ -61,7 +61,7 @@ def record(time,rate, pather):
     for _ in range(int(sample_rate / chunk * record_seconds)):
         data = stream.read(chunk)
         # if you want to hear your voice while recording
-        stream.write(data)
+        #stream.write(data)
         frames.append(data)
     print("Finished recording.")
     # stop and close stream

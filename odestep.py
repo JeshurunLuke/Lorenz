@@ -142,9 +142,9 @@ def rk45(fRHS,x0,y0,dx,**kwargs):
     pshrink = -0.25
     pgrow   = -0.2
     safe    = 0.9
-    errcon  = 1.89e-6
-    eps     = 1e-6                                          # this should depend on problem. Accuracy.
-    maxit   = 100000                                        # this should depend on problem
+    errcon  = 1.89e-10
+    eps     = 1e-10                                          # this should depend on problem. Accuracy.
+    maxit   = 1000000                                        # this should depend on problem
     xt      = 0.0                                           # temporary independent variable: will count up to dx.
     x1      = x0
     it      = 0                                             # iteration counter, as safeguard
