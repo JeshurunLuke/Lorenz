@@ -37,6 +37,7 @@ num_processes = 7  # Number of processors you want to use to generate data: has 
 IMPORTANT IF YOU HAVE A MAC OR UNIX CHANGE ALL THE // to \ to properly save the file
 '''
 def solverk45(ics, rho,t):
+    n = t.size
     stepper = 'rk45'
     fINT,fORD,fRHS,fBVP = lor.ode_init(stepper,False)
     x,y,it = fINT(fRHS,fORD,fBVP,t[0],ics,t[t.size-1],n-1, False, rho = rho)  
@@ -76,7 +77,7 @@ if __name__ == "__main__":
     prob = 1    #Can be one of 3
 
     folder = 'Prob1' #Folder where your files are stored
-    speed = True
+    speed = False
     n = 100000
 
 
@@ -153,7 +154,7 @@ if __name__ == "__main__":
 
     elif prob == 2: #Illustrates Chaotic Nature from small change in conditions
         t = np.linspace(0, tlen, n) #Time for lorenz system
-        ics = np.array([[1.000,0,0],[1.0001,0,0]]) #Initial condition small differnece
+        ics = np.array([[1.000,0.001,0.1],[1.000,0.002,0.1]]) #Initial condition small differnece
         p = mp.Pool(num_processes)
         if speed: #scipy integrator
             solns = p.starmap(lor.solve, zip(ics, repeat(rho),repeat(t)))
@@ -171,7 +172,7 @@ if __name__ == "__main__":
  
         ics = np.array([100,100,100])
         if speed: #Uses scipy integrator
-            soln = lor.solve(ics)
+            soln = lor.solve(ics,rho,t)
         else: #Uses our integrator 
             solverk45(ics, rho,t)
 

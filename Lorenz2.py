@@ -178,19 +178,18 @@ Default:
     rdependance = False
 '''
 if __name__ == "__main__":
-    ndependance = False ##Looks at extent of integration used to find level of synchronization for different n
-    icrdependance = True ##Looks at Extent and Rate of integration with an average used to find level of synchronization for different r and initial conditions
+    ndependance = True ##Looks at extent of integration used to find level of synchronization for different n
+    icrdependance = False ##Looks at Extent and Rate of integration with an average used to find level of synchronization for different r and initial conditions
     rdependance = False ##Looks at Rate of integration with an average used to find level of synchronization for different r and initial conditions
-
+    #End time of integration for the lorenz system
     tlen = 100
     #If speed = False --> rk45 integrator else odeint integrator
-    speed = True
+    speed = False
 
 
-    #If speed = False --> rk45 integrator else odeint integrator
 
-    if ndependance:
-
+    if ndependance: #1 hour run time with rk45 4 minutes with (the run time will be drastically reduced when n.size = numofprocessors i believe)
+        
         rho = 60 #Sets r
         n = [100,1000,5000,10000,50000,100000,1000000,2500000,5000000]
 
@@ -227,14 +226,14 @@ if __name__ == "__main__":
         plt.xlabel('log(Step)')
         plt.ylabel('Minimal Error')
         plt.show()
-    if icrdependance:
+    if icrdependance: #11 minute run time
 
         ics = [[0.75,0.75,0.75],[5.0,5.0,5.0],[10.0,10.0,10.0],[100.0,100.0,100.0],[50.0,50.0,50.0]]
         n = 100000 #Sets number of steps
         #Iterates through each IC
         for ic in ics:
             print(f"IC in progress:{ic}")
-            rho = np.linspace(25,70,15)
+            rho = np.linspace(25,70,5)
 
             ic2 = tuple(ic)
             
@@ -265,8 +264,7 @@ if __name__ == "__main__":
         plt.xlabel('rho')
         plt.ylabel('Drive Function Average Error')
         plt.show()
-    print("To")
-    if rdependance: #Checks rate for different r 
+    if rdependance: #Checks rate for different r : 37 minute run time
         rho = np.arange(25,70,5) 
         n = 1000000
         

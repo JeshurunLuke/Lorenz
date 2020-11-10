@@ -48,7 +48,7 @@ beta = 8/3
 sigma = 10
 
 '''
-IMPORTANT IF YOU HAVE A MAC OR UNIX CHANGE ALL THE // to \ to properly save the file
+IMPORTANT IF YOU HAVE A MAC OR UNIX CHANGE ALL THE \\ to / to properly save the file
 ALSO INSTEAD of
     import audio as ad
 USE
@@ -148,7 +148,7 @@ def ode_init(stepper, driver):
 #Perturbed Synchronization 
 def Perturbed(sol1, rho, ic, binary,t, stepper,timer,speed,Name,times, random):
     sample_rate = sol1[:,0].size/timer
-    frac = 0.01
+    frac = 0.01*(t[-1]/100) #Higher t's require better fraction for better synchronization
 
     #Generates binary signal according to frequency and sample rate
     if binary:
@@ -219,13 +219,13 @@ def Perturbed(sol1, rho, ic, binary,t, stepper,timer,speed,Name,times, random):
         x,y,it = fINT(fRHS,fORD,fBVP,t[0],ic,t[t.size-1],signal.size-1, True, driving = driving, rho = rho)  
 
         tend = time.time()
-        print(f"It took approximatly {tend-tstart} seconds")
+        print(f"Recovery: It took approximatly {tend-tstart} seconds")
     else: #Receiver differntial equation recovery with scipy integrator
         tstart = time.time()
         sol2 = solvrec(ic,rho, driving,t)
         y = np.transpose(sol2)
         tend = time.time()
-        print(f"It took approximatly {tend-tstart} seconds")
+        print(f"Recovery: It took approximatly {tend-tstart} seconds")
 
 
     #Gets and plots recovered signal
@@ -352,11 +352,14 @@ if __name__ == "__main__":
     '''
     #Keep n at 1 mil any lower and you can't test t = 1000 as well as t = 100
     n = 1000000 #Number of Steps: Needs to be atleast above 1 mil for good recovery or can be 100,000 if t= 100
-    tlen = 100 #Lorenz Integration Time: Need atleast above 100 for decent masking and a certain ratio between n/tlen has to be maintained for convergence dt<0
-    #But if you try tlen = 10 with binary it breaks horribly for r>24.8 why?
+    tlen = 1000 #Lorenz Integration Time: Need atleast above 100 for decent masking and a certain ratio between n/tlen has to be maintained for convergence dt<0
+
     sample_rate = 200000 #Sample Rate: Keep at 200000 and only lower if n goes down
 
     random = True #Random binary True = Yes False = no
+
+
+
 
     timer = n/sample_rate #For sample rate and steps whats the maximum time of recording
 
@@ -392,7 +395,7 @@ if __name__ == "__main__":
 
 
     tstart = time.time()
-
+    print("Initialization Started") #Takes about 100-200 seconds
     if speed: #uses scipy integrator
         sol1 = solve(ics,rho,t)
     else: #Uses our implemented integrator
@@ -403,7 +406,7 @@ if __name__ == "__main__":
     tmp = tend - tstart
     print(f"Initialization took approximatly {tmp} seconds")
     if speed == False:
-        print(f"Syncrhonization Prediction: {5*tmp} seconds")
+        print(f"Synchronization Prediction: {4.5*tmp} seconds")
 
 
     #uses parallel processing to check for convergence and for recovery

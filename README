@@ -1,0 +1,40 @@
+Setup:
+    conda activate base
+    conda install pyaudio
+    Install any packages missing using
+        pip install _package_name_
+Packages Used: (All should already be installed in default)
+    multiprocessing
+    numpy
+    matplotlib
+    scipy
+    argparse
+    os
+    itertools
+    time
+
+Functions:
+Lorenz3: Encryption of Signal with a parallel run of unperturbed run
+Default Run: python Lorenz3.py rk45 Prac 50 record 5
+Faster Run: python Lorenz3.py odeint Prac 50 record 5
+
+
+Lorenz2: Data analysis regarding synchronization for Paper
+Default Run: python Lorenz2.py (the graph displayed depend on the Boolean/Boolean/Boolean sequence look into __name__ = main for more info)
+Faster Run: change speed from False to True (this switches the integrator from rk45--> odeint)
+
+
+Lorenz1: Animation and Figures for presentation
+Default Run: python Lorenz1.py (the graph displayed depend on if prob = 1,2 or 3 look into __name__ = main for more info)
+Faster Run: change speed from False to True (this switches the integrator from rk45--> odeint)
+
+
+LorenzMap: Map along with 3d graphs with time gradient
+Default Run: python LorenzMap.py rk45 100000 Practice 60
+
+audio/audiolinux.py : serves to record, graph, generate audio signals for either windows or Mac respectively
+odestep: Integrators used
+
+Folders:
+Data: Data from Lorenz1
+Sound: .wav and waveform for Lorenz3

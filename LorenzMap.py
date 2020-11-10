@@ -9,7 +9,6 @@ import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 import audio as ad
 import odestep as step
-from scipy.integrate import odeint
 
 
 def param(x,**kwargs):
@@ -42,12 +41,7 @@ def get_step():
 
 
 def ode_init(stepper,nstep, **kwargs):
-    try:
-        time = int(kwargs['time'])
-    except:
-        print("Defaulting to: 100 ")
-        time = 100
-    ver = int(kwargs['version'])
+
     # var = int(kwargs['var'])
 
     fBVP = 0 # default is IVP, but see below.
@@ -68,9 +62,8 @@ def ode_init(stepper,nstep, **kwargs):
 
     x0 = 0
     fINT = ode_ivp
-    if ver == 1:
-        y0 = np.array([1e-16,1e-16,1e-16])
-        fRHS = dydx_lorenz
+    y0 = np.array([1e-16,1e-16,1e-16])
+    fRHS = dydx_lorenz
     fBVP = 0
     return fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep
 
@@ -121,34 +114,37 @@ def check(x,y,it,r,Name, **kwargs):
     
     # Lorenz Map
     plt.figure()
+    ymap = y[:,250:-1]
+    nmap = ymap[2].size-1
+    print(n)
     Mn = []
     Mn1 = []
     i = 0
     j = -1
-    while(i<n):
-        while(y[2][i]<y[2][i+1]):
+    while(i<nmap):
+        while(ymap[2][i]<ymap[2][i+1]):
             i+= 1
-            if i == n-2:
+            if i == nmap-2:
                 break
         
-        if i == n-2:
+        if i == nmap-2:
             break
     
         if  j == -1:
-            Mn.append(y[2][i])
+            Mn.append(ymap[2][i])
         
         else:
-            Mn1.append(y[2][i])
+            Mn1.append(ymap[2][i])
         j *= -1
-        while(y[2][i]>y[2][i+1]):
+        while(ymap[2][i]>ymap[2][i+1]):
             i+=1
-            if i==n-2:
+            if i==nmap-2:
                 break
     x = np.linspace(0,300,100)        
     plt.plot(x, x, label='y = x',color='k')
     plt.scatter(Mn[0:len(Mn1)],Mn1,color='g',s =10)
-    plt.xlim([0.5*max(Mn), max(Mn)+10])
-    plt.ylim([0.7*max(Mn), max(Mn)+10])
+    plt.xlim([min(Mn)-1, max(Mn)+1])
+    plt.ylim([min(Mn1)-1, max(Mn1)+1])
 
     plt.xlabel('z_n')
     plt.ylabel('z_(n+1)')
@@ -170,12 +166,13 @@ def check(x,y,it,r,Name, **kwargs):
 #         axs[2].set_xlabel('y(t)')
 #         axs[2].set_ylabel('z(t)')
 # =============================================================================
+    plt.show()
 
 def set_step():
     global steps
     steps = -1
     
-def run(stepper, nstep, ver, Name, rparam, sound, drive):
+def run(stepper, nstep, Name, rparam):
     time = 100
     fINT,fORD,fRHS,fBVP,x0,y0,x1,nstep = ode_init(stepper,nstep, version = 1, var = 0, time = time)
     x,y,it = fINT(fRHS,fORD,fBVP,x0,y0,x1,nstep,s=10,b=8/3,r=rparam)
@@ -205,56 +202,31 @@ def run(stepper, nstep, ver, Name, rparam, sound, drive):
     
 if __name__ == "__main__": 
 
-    #Default Run : python Lorenz.py rk4 100000 3 Practice 30 record x
-    '''
-    Work: what values of r best synchronize the message
-          Is there a single value we can use to characterize synchronizaiton?
-          How does step size effect the convergence of the synchronization?
-          Is there any parallel work or anything else we can use to speed up the integrator?
-          Search with a cost function = integral of Lyaponov
-    '''
-    '''
-    Time Dependance of Lyaponov Function and level of Synchronization
-    Constant function failed syncrhonization why?
-    Low levels marked similar to drive lyaponov difference but higher inten relationship lost 
-    '''
+    #Default Run : python LorenzMap.py rk45 100000 Practice 60
+
 
     parser = argparse.ArgumentParser(formatter_class=RawTextHelpFormatter)
     parser.add_argument("stepper",type=str,default='euler',
                         help="stepping function:\n"
                              "   euler: Euler step\n"
-                             "   rk2  : Runge-Kutta 2nd order\n"
-                             "   rk4  : Runge-Kutta 4th order\n")
+                             "   rk4  : Runge-Kutta 4nd order\n"
+                             "   rk45  : Runge-Kutta Adaptive\n")
     parser.add_argument("steps",type=int,default=100,
                         help="number of steps")
-    parser.add_argument("ver",type=int,default=1,
-                        help="  1:Lorenz\n" 
-                        "  2:Unperturbed\n"
-                        "  3: Record/Binary Perturbation")
+
     parser.add_argument("namefolder",type=str,default=1,
                         help="paramaters tested")
     parser.add_argument("r",type=str,default=1,
                         help="r tested")
-    parser.add_argument("sound",type=str,default=1,
-                        help="  record: recording\n"
-                          "  binary: binary\n" 
-                          "  NA: for version 1 and 2" )
-    parser.add_argument("drive",type=str,default=1,
-                        help="Drive signal?\n"
-                          "  x: x is your drive\n" 
-                          "  y: y is your drive\n"
-                          "  NA: if version 1" )
 
     args   = parser.parse_args()
 
     stepper= args.stepper
     nstep = args.steps-1
-    ver = args.ver
     Name = args.namefolder
     rparam = args.r
-    sound = args.sound
-    drive = args.drive
+
 
 
     pather = os.getcwd() + '\\Data' + "\\" + Name
-    run(stepper, nstep, ver, Name, rparam, sound, drive )    
+    run(stepper, nstep,Name, rparam)    

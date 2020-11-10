@@ -175,13 +175,19 @@ def Setter(folder, mode, **kwargs): #Provide Folder Name(inside sound Directory)
         if (key=='rand'):
             random = kwargs[key]
      
-
+    path = os.getcwd() + "/Sound"
+    try:
+        os.mkdir(path)
+    except:
+        pass
     path = os.getcwd() + "/Sound/" + str(folder)
     try:
         os.mkdir(path)
     except:
         pass
     pather = path + "/" + name
+ 
+
     if mode == 1:
         signal = binary(A,T,time,rate, folder, random)
     else:
